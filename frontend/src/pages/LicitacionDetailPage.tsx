@@ -5,6 +5,7 @@ import { EstadoBadge } from "@/components/licitaciones/EstadoBadge";
 import { AnalisisCard } from "@/components/licitacion-detail/AnalisisCard";
 import { MatchingCard } from "@/components/licitacion-detail/MatchingCard";
 import { DocumentosCard } from "@/components/licitacion-detail/DocumentosCard";
+import { PreguntasCard } from "@/components/licitacion-detail/PreguntasCard";
 import { ItemsTable } from "@/components/licitacion-detail/ItemsTable";
 import { RawJsonViewer } from "@/components/licitacion-detail/RawJsonViewer";
 import { Button } from "@/components/ui/button";
@@ -43,7 +44,13 @@ export function LicitacionDetailPage() {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <Button variant="ghost" size="sm" className="mb-2 -ml-2" nativeButton={false} render={<Link to="/" />}>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="mb-2 -ml-2"
+          nativeButton={false}
+          render={<Link to="/licitaciones" />}
+        >
           ← Volver al listado
         </Button>
         <div className="flex flex-wrap items-center gap-2">
@@ -98,6 +105,10 @@ export function LicitacionDetailPage() {
       </div>
 
       <DocumentosCard codigoExterno={licitacion.codigoExterno} documentos={licitacion.documentos} />
+
+      {licitacion.documentos.some((doc) => doc.chunksCount > 0) && (
+        <PreguntasCard codigoExterno={licitacion.codigoExterno} />
+      )}
 
       <RawJsonViewer codigoExterno={licitacion.codigoExterno} />
     </div>

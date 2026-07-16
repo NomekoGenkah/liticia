@@ -3,6 +3,7 @@ import { IngestaPanel } from "@/components/procesos/IngestaPanel";
 import { IngestaRunsTable } from "@/components/procesos/IngestaRunsTable";
 import { AnalisisPanel } from "@/components/procesos/AnalisisPanel";
 import { MatchingPanel } from "@/components/procesos/MatchingPanel";
+import { EmbeddingPanel } from "@/components/procesos/EmbeddingPanel";
 
 export function ProcesosPage() {
   return (
@@ -23,6 +24,7 @@ export function ProcesosPage() {
       <div className="grid gap-4 md:grid-cols-2">
         <AnalisisPanel />
         <MatchingPanel />
+        <EmbeddingPanel />
       </div>
     </div>
   );

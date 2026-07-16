@@ -12,6 +12,12 @@ import { TagListInput } from "./TagListInput";
 import { guardarPerfilEmpresa } from "@/api/perfilEmpresa";
 import type { PerfilEmpresa, PerfilEmpresaInput } from "@/types/api";
 
+// Sin `items`, Select.Value de Base UI muestra el value crudo ("PERSONA_NATURAL").
+const TIPO_PERFIL_ITEMS = [
+  { value: "EMPRESA", label: "Empresa" },
+  { value: "PERSONA_NATURAL", label: "Persona natural" },
+];
+
 const schema = z.object({
   tipo: z.enum(["EMPRESA", "PERSONA_NATURAL"]),
   nombre: z.string().min(1, "El nombre es obligatorio"),
@@ -97,13 +103,16 @@ export function PerfilForm({ perfil }: { perfil: PerfilEmpresa | null }) {
           control={control}
           name="tipo"
           render={({ field }) => (
-            <Select value={field.value} onValueChange={(v) => v && field.onChange(v)}>
+            <Select items={TIPO_PERFIL_ITEMS} value={field.value} onValueChange={(v) => v && field.onChange(v)}>
               <SelectTrigger className="w-56">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="EMPRESA">Empresa</SelectItem>
-                <SelectItem value="PERSONA_NATURAL">Persona natural</SelectItem>
+                {TIPO_PERFIL_ITEMS.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           )}

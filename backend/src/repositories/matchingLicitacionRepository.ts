@@ -1,5 +1,6 @@
 import { prisma } from "../config/prisma";
 import type { LicitacionAnalisisParaMatching } from "../clients/ollamaClient.types";
+import { filtroPorSegmentos } from "../utils/unspsc";
 
 export interface MatchingCompletadoInput {
   licitacionId: string;
@@ -54,7 +55,14 @@ export const matchingLicitacionRepository = {
   },
 
   /** Licitaciones activas ("Publicada") con análisis completado, sin matching vigente para el perfil actual. */
-  async listarPendientesActivas(perfilVersionActual: number): Promise<LicitacionParaMatchingPendiente[]> {
+  /**
+   * @param segmentosUnspsc Si viene con valores, solo devuelve licitaciones con al menos un ítem de
+   * esos segmentos. Vacío o sin definir procesa todas (comportamiento de siempre).
+   */
+  async listarPendientesActivas(
+    perfilVersionActual: number,
+    segmentosUnspsc: string[] = []
+  ): Promise<LicitacionParaMatchingPendiente[]> {
     const licitaciones = await prisma.licitacion.findMany({
       where: {
         estado: { equals: "Publicada", mode: "insensitive" },
@@ -64,6 +72,7 @@ export const matchingLicitacionRepository = {
           { matching: { estado: "FALLIDO" } },
           { matching: { perfilVersion: { not: perfilVersionActual } } },
         ],
+        ...filtroPorSegmentos(segmentosUnspsc),
       },
       select: {
         id: true,

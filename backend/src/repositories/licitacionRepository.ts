@@ -153,15 +153,31 @@ export const licitacionRepository = {
   },
 
   async findByCodigoExterno(codigoExterno: string, includeRaw: boolean) {
-    return prisma.licitacion.findUnique({
+    const licitacion = await prisma.licitacion.findUnique({
       where: { codigoExterno },
       include: {
         items: true,
         analisis: true,
         matching: true,
-        documentos: { omit: { rutaAlmacenamiento: true }, orderBy: { fechaCarga: "desc" } },
+        documentos: {
+          omit: { rutaAlmacenamiento: true },
+          // Cuántos chunks tiene cada documento: con esto el frontend sabe si ya se puede preguntar
+          // sobre él sin traerse los embeddings.
+          include: { _count: { select: { chunks: true } } },
+          orderBy: { fechaCarga: "desc" },
+        },
       },
       omit: includeRaw ? undefined : { rawResponse: true },
     });
+
+    if (!licitacion) return null;
+
+    return {
+      ...licitacion,
+      documentos: licitacion.documentos.map(({ _count, ...documento }) => ({
+        ...documento,
+        chunksCount: _count.chunks,
+      })),
+    };
   },
 };

@@ -7,7 +7,9 @@ import type {
   LicitacionPendiente,
 } from "../repositories/analisisLicitacionRepository";
 import type { licitacionRepository } from "../repositories/licitacionRepository";
+import type { perfilEmpresaRepository } from "../repositories/perfilEmpresaRepository";
 import { NotFoundError } from "../utils/errors";
+import { segmentosDe } from "../utils/unspsc";
 import { buildAnalisisPrompt, PROMPT_VERSION } from "./analisisPrompt";
 
 export interface AnalisisPendientesResumen {
@@ -25,7 +27,12 @@ export class AnalisisLicitacionesService {
   constructor(
     private readonly ollamaClient: OllamaClient,
     private readonly licitacionRepo: typeof licitacionRepository,
-    private readonly analisisRepo: typeof analisisLicitacionRepository
+    private readonly analisisRepo: typeof analisisLicitacionRepository,
+    /**
+     * El análisis en sí no sabe nada del perfil (sigue siendo una descripción neutra de la
+     * licitación); el perfil solo se usa para decidir a cuáles vale la pena gastarles LLM.
+     */
+    private readonly perfilEmpresaRepo: typeof perfilEmpresaRepository
   ) {}
 
   async analizarUna(codigoExterno: string) {
@@ -48,7 +55,13 @@ export class AnalisisLicitacionesService {
   }
 
   async analizarPendientes(): Promise<AnalisisPendientesResumen> {
-    const pendientes = await this.analisisRepo.listarPendientesActivas();
+    const segmentos = await this.segmentosDelPerfil();
+    const pendientes = await this.analisisRepo.listarPendientesActivas(segmentos);
+
+    if (segmentos.length > 0) {
+      logger.info({ segmentos, pendientes: pendientes.length }, "Análisis acotado a los segmentos UNSPSC del perfil");
+    }
+
     const resumen: AnalisisPendientesResumen = {
       totalEncontradas: pendientes.length,
       totalCompletadas: 0,
@@ -67,6 +80,17 @@ export class AnalisisLicitacionesService {
 
     logger.info({ ...resumen }, "Batch de análisis de pendientes finalizado");
     return resumen;
+  }
+
+  /**
+   * Segmentos UNSPSC declarados en el perfil. Sin perfil, o con un perfil sin categorías, devuelve
+   * vacío y el batch procesa todo — el filtro nunca deja al sistema sin hacer nada.
+   *
+   * Solo acota el batch: `analizarUna()` sigue analizando cualquier licitación que le pidas.
+   */
+  private async segmentosDelPerfil(): Promise<string[]> {
+    const perfil = await this.perfilEmpresaRepo.obtener();
+    return perfil ? segmentosDe(perfil.categoriasUnspsc) : [];
   }
 
   private async procesar(licitacion: LicitacionParaProcesar | LicitacionPendiente) {

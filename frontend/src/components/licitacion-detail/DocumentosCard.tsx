@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardAction } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -26,6 +27,9 @@ export function DocumentosCard({
   const queryClient = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
   const [arrastrando, setArrastrando] = useState(false);
+
+  // Sin esto el chat queda oculto y no hay forma de descubrir que existe.
+  const hayTextoSinIndexar = documentos.some((doc) => doc.textoExtraido?.trim() && doc.chunksCount === 0);
 
   const subirMutation = useMutation({
     mutationFn: (archivo: File) => subirDocumento(codigoExterno, archivo),
@@ -112,6 +116,7 @@ export function DocumentosCard({
                 <TableHead>Tamaño</TableHead>
                 <TableHead>Subido</TableHead>
                 <TableHead>Estado</TableHead>
+                <TableHead>Chat</TableHead>
                 <TableHead />
               </TableRow>
             </TableHeader>
@@ -133,6 +138,15 @@ export function DocumentosCard({
                     <DocumentoEstadoBadge estado={doc.estadoExtraccion} />
                   </TableCell>
                   <TableCell>
+                    {doc.chunksCount > 0 ? (
+                      <Badge variant="secondary">
+                        {doc.chunksCount} {doc.chunksCount === 1 ? "fragmento" : "fragmentos"}
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline">Sin indexar</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>
                     <Button
                       size="sm"
                       variant="ghost"
@@ -146,6 +160,13 @@ export function DocumentosCard({
               ))}
             </TableBody>
           </Table>
+        )}
+
+        {hayTextoSinIndexar && (
+          <p className="text-sm text-muted-foreground">
+            Genera los embeddings en <span className="font-medium">Procesos → Embeddings de documentos</span> para
+            poder hacer preguntas sobre estos documentos.
+          </p>
         )}
       </CardContent>
     </Card>

@@ -36,14 +36,16 @@ function buildService() {
     guardarFallido: vi.fn().mockResolvedValue({ id: "an-1" }),
     listarPendientesActivas: vi.fn(),
   };
+  const perfilEmpresaRepo = { obtener: vi.fn().mockResolvedValue(null) };
 
   const service = new AnalisisLicitacionesService(
     ollamaClient as never,
     licitacionRepo as never,
-    analisisRepo as never
+    analisisRepo as never,
+    perfilEmpresaRepo as never
   );
 
-  return { service, ollamaClient, licitacionRepo, analisisRepo };
+  return { service, ollamaClient, licitacionRepo, analisisRepo, perfilEmpresaRepo };
 }
 
 describe("AnalisisLicitacionesService.analizarUna", () => {
@@ -116,5 +118,36 @@ describe("AnalisisLicitacionesService.analizarPendientes", () => {
     const resumen = await service.analizarPendientes();
 
     expect(resumen).toEqual({ totalEncontradas: 0, totalCompletadas: 0, totalFallidas: 0 });
+  });
+
+  it("acota el batch a los segmentos UNSPSC del perfil", async () => {
+    const { service, analisisRepo, perfilEmpresaRepo } = buildService();
+    perfilEmpresaRepo.obtener.mockResolvedValue({ categoriasUnspsc: ["43232400", "81111500", "43231500"] });
+    analisisRepo.listarPendientesActivas.mockResolvedValueOnce([]);
+
+    await service.analizarPendientes();
+
+    expect(analisisRepo.listarPendientesActivas).toHaveBeenCalledWith(["43", "81"]);
+  });
+
+  it("procesa todo si no hay perfil configurado", async () => {
+    // El filtro nunca puede dejar al batch sin hacer nada por falta de perfil.
+    const { service, analisisRepo, perfilEmpresaRepo } = buildService();
+    perfilEmpresaRepo.obtener.mockResolvedValue(null);
+    analisisRepo.listarPendientesActivas.mockResolvedValueOnce([]);
+
+    await service.analizarPendientes();
+
+    expect(analisisRepo.listarPendientesActivas).toHaveBeenCalledWith([]);
+  });
+
+  it("procesa todo si el perfil no declaró categorías", async () => {
+    const { service, analisisRepo, perfilEmpresaRepo } = buildService();
+    perfilEmpresaRepo.obtener.mockResolvedValue({ categoriasUnspsc: [] });
+    analisisRepo.listarPendientesActivas.mockResolvedValueOnce([]);
+
+    await service.analizarPendientes();
+
+    expect(analisisRepo.listarPendientesActivas).toHaveBeenCalledWith([]);
   });
 });

@@ -1,4 +1,5 @@
 import { prisma } from "../config/prisma";
+import { filtroPorSegmentos } from "../utils/unspsc";
 import type { LicitacionParaAnalisis } from "../clients/ollamaClient.types";
 
 export interface AnalisisCompletadoInput {
@@ -45,11 +46,16 @@ export const analisisLicitacionRepository = {
   },
 
   /** Licitaciones activas ("Publicada") sin análisis vigente (sin fila, o última fila FALLIDA). */
-  async listarPendientesActivas(): Promise<LicitacionPendiente[]> {
+  /**
+   * @param segmentosUnspsc Si viene con valores, solo devuelve licitaciones con al menos un ítem de
+   * esos segmentos. Vacío o sin definir procesa todas (comportamiento de siempre).
+   */
+  async listarPendientesActivas(segmentosUnspsc: string[] = []): Promise<LicitacionPendiente[]> {
     const licitaciones = await prisma.licitacion.findMany({
       where: {
         estado: { equals: "Publicada", mode: "insensitive" },
         OR: [{ analisis: null }, { analisis: { estado: "FALLIDO" } }],
+        ...filtroPorSegmentos(segmentosUnspsc),
       },
       select: {
         id: true,

@@ -19,6 +19,20 @@ const ORDEN_OPCIONES = [
 
 const SIN_FILTRO = "__todos__";
 
+// Base UI necesita `items` en Select.Root para que Select.Value muestre la etiqueta del ítem
+// elegido; sin esto renderiza el value crudo ("__todos__", "fechaPublicacion:asc").
+const ESTADO_ITEMS = [
+  { value: SIN_FILTRO, label: "Todos" },
+  ...ESTADOS_LICITACION.map((estado) => ({ value: estado, label: estado })),
+];
+
+const RECOMENDACION_ITEMS = [
+  { value: SIN_FILTRO, label: "Todas" },
+  { value: "SI", label: "Sí" },
+  { value: "TAL_VEZ", label: "Tal vez" },
+  { value: "NO", label: "No" },
+];
+
 export interface LicitacionesFiltrosState {
   estado?: string;
   codigoOrganismo?: string;
@@ -50,6 +64,7 @@ export function LicitacionesFilters({ value, onApply }: Props) {
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="filtro-estado">Estado</Label>
         <Select
+          items={ESTADO_ITEMS}
           value={local.estado ?? SIN_FILTRO}
           onValueChange={(v) =>
             setLocal((prev) => ({ ...prev, estado: !v || v === SIN_FILTRO ? undefined : String(v) }))
@@ -59,10 +74,9 @@ export function LicitacionesFilters({ value, onApply }: Props) {
             <SelectValue placeholder="Todos" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={SIN_FILTRO}>Todos</SelectItem>
-            {ESTADOS_LICITACION.map((estado) => (
-              <SelectItem key={estado} value={estado}>
-                {estado}
+            {ESTADO_ITEMS.map((item) => (
+              <SelectItem key={item.value} value={item.value}>
+                {item.label}
               </SelectItem>
             ))}
           </SelectContent>
@@ -83,6 +97,7 @@ export function LicitacionesFilters({ value, onApply }: Props) {
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="filtro-recomendacion">Recomendación IA</Label>
         <Select
+          items={RECOMENDACION_ITEMS}
           value={local.recomendacion ?? SIN_FILTRO}
           onValueChange={(v) =>
             setLocal((prev) => ({
@@ -95,10 +110,11 @@ export function LicitacionesFilters({ value, onApply }: Props) {
             <SelectValue placeholder="Todas" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={SIN_FILTRO}>Todas</SelectItem>
-            <SelectItem value="SI">Sí</SelectItem>
-            <SelectItem value="TAL_VEZ">Tal vez</SelectItem>
-            <SelectItem value="NO">No</SelectItem>
+            {RECOMENDACION_ITEMS.map((item) => (
+              <SelectItem key={item.value} value={item.value}>
+                {item.label}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
@@ -106,6 +122,7 @@ export function LicitacionesFilters({ value, onApply }: Props) {
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="filtro-orden">Ordenar por</Label>
         <Select
+          items={ORDEN_OPCIONES}
           value={local.orderBy}
           onValueChange={(v) => v && setLocal((prev) => ({ ...prev, orderBy: String(v) }))}
         >

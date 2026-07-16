@@ -24,6 +24,12 @@ const envSchema = z.object({
     .default("false")
     .transform((v) => v === "true"),
 
+  OLLAMA_EMBED_MODEL: z.string().default("nomic-embed-text"),
+  OLLAMA_EMBED_BATCH_SIZE: z.coerce.number().int().positive().default(16),
+  OLLAMA_RAG_TIMEOUT_MS: z.coerce.number().int().positive().default(180000),
+  OLLAMA_RAG_NUM_CTX: z.coerce.number().int().positive().default(8192),
+  RAG_TOP_K: z.coerce.number().int().positive().default(5),
+
   SCHEDULE_MODE: z.enum(["cron", "interval"]).default("cron"),
   SCHEDULE_VALUE: z.string().default("0 2 * * *"),
 

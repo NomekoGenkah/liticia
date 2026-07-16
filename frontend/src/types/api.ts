@@ -122,6 +122,50 @@ export interface LicitacionDocumento {
   estadoExtraccion: DocumentoEstadoExtraccion;
   detalleError: string | null;
   fechaCarga: string;
+  /** Fragmentos indexados. En 0 el documento todavía no se puede consultar por chat. */
+  chunksCount: number;
+}
+
+export interface CierrePorDia {
+  /** YYYY-MM-DD. */
+  dia: string;
+  total: number;
+}
+
+/** Agregados de GET /api/estadisticas/panel. */
+export interface EstadisticasPanel {
+  activas: number;
+  cierran7Dias: number;
+  cierran48Horas: number;
+  vencidas: number;
+  totalLicitaciones: number;
+  analizadasActivas: number;
+  matcheadasActivas: number;
+  recomendadasSi: number;
+  hayPerfil: boolean;
+  cierresPorDia: CierrePorDia[];
+}
+
+/** Un fragmento que se usó como contexto de una respuesta. */
+export interface PreguntaFuente {
+  documentoId: string;
+  nombreArchivo: string;
+  chunkIndex: number;
+  /** Similitud coseno contra la pregunta, 0..1. */
+  similitud: number;
+  extracto: string;
+}
+
+export interface LicitacionPregunta {
+  id: string;
+  licitacionId: string;
+  pregunta: string;
+  respuesta: string;
+  fuentes: PreguntaFuente[];
+  modelo: string;
+  promptVersion: number;
+  duracionMs: number;
+  creadoEn: string;
 }
 
 /** Detalle GET /api/licitaciones/:codigoExterno. */

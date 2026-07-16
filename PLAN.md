@@ -37,7 +37,7 @@ Se investigó el flujo real de la ficha pública de una licitación en mercadopu
 | 4 | Perfil de empresa + matching con IA | Hecho |
 | 5 | Frontend completo | Hecho |
 | 6 | Ingesta de documentos (carga manual) | Hecho |
-| 7 | RAG: preguntas y respuestas sobre documentos | Pendiente |
+| 7 | RAG: preguntas y respuestas sobre documentos | Hecho |
 
 ## Fase 1 — Ingesta base (alcance)
 
@@ -68,6 +68,14 @@ El usuario (mono-usuario, app 100% local) declara un único perfil de empresa (`
 1. Disparo manual, mismo patrón que Fase 3: `POST /api/licitaciones/:codigoExterno/matching` (individual) y `POST /api/matching/pendientes` (batch asíncrono, 202 + polling vía `GET /api/matching/estado`) + `npm run match` (CLI, forma síncrona primaria).
 2. `PerfilEmpresa` lleva un campo `version` que se incrementa en cada `PUT /api/perfil-empresa`; cada `LicitacionMatching` guarda el `perfilVersion` con el que fue calculado. Esto invalida (sin borrar) los matches calculados contra un perfil viejo — vuelven a aparecer como "pendientes" cuando el perfil cambia.
 3. `GET`/`PUT /api/perfil-empresa` para leer/crear-actualizar el perfil (404 `PERFIL_EMPRESA_NO_CONFIGURADO` si aún no existe).
+
+### Prefiltro por segmento UNSPSC (añadido después)
+
+Los batches de pendientes de análisis y de matching solo procesan licitaciones con al menos un ítem del **segmento** UNSPSC (2 primeros dígitos) de alguna `categoriasUnspsc` del perfil. Sin perfil, o con un perfil sin categorías, procesan todo como antes. `analizarUna()`/`matchearUna()` no se ven afectados: el filtro solo decide a qué vale la pena gastarle LLM, y cualquier licitación puntual se puede seguir analizando a mano.
+
+**Por qué segmento y no el código exacto**, medido sobre datos reales: el código clasifica bien lo lejano y mal lo cercano. "Servicio implementación Jira o similar mod Cloud" viene clasificado por el organismo como `43231500` ("paquetes de software para oficinas"), así que un filtro por código exacto contra un perfil de desarrollo la dejaría fuera — y en cambio dejaría pasar "Enlace de internet de alta velocidad", que comparte el código `83121700` con ese mismo perfil. Con el perfil real (8 códigos de desarrollo de software), de 266 activas: código exacto → 3 (pierde la de Jira, 2 de las 3 son conectividad), familia de 4 dígitos → 7, segmento → 28. El segmento descarta lo obviamente ajeno (neumáticos, vendajes, asfalto) y deja el juicio fino al LLM, que sí entiende que Jira es desarrollo.
+
+**Por qué el filtro va acá y no en la ingesta**: el `search()` de ChileCompra solo devuelve `CodigoExterno`, `Nombre`, `CodigoEstado` y `FechaCierre` — los ítems con su categoría UNSPSC solo vienen en `getDetail()`. Para conocer el código ya hay que haber gastado el request del detalle, que es el recurso realmente escaso (límite diario por ticket); descartar la licitación después no lo devuelve. Guardarla cuesta ~21 KB (12 MB las 576) y es reversible; no guardarla es irreversible, porque la API solo permite volver a consultar por fecha. El costo real está en el LLM (~26 s por licitación), y ahí es donde el filtro corta.
 
 Detalle completo del diseño en el plan de la sesión (`/home/genkah/.claude/plans/lee-plan-md-y-planea-steady-turtle.md`).
 
@@ -100,6 +108,19 @@ Detalle completo del diseño en el plan de la sesión (`/home/genkah/.claude/pla
 2. Los documentos con `textoExtraido` se parten en chunks (~500-1000 tokens con solape) y cada chunk se embebe con `OllamaClient.generarEmbedding()`, usando `nomic-embed-text` (768 dimensiones) como modelo de embeddings por defecto — separado del modelo de chat, configurable vía `OLLAMA_EMBED_MODEL`.
 3. Disparo manual, mismo patrón que Fases 3/4: `POST /api/documentos/pendientes` (batch asíncrono, 202 + polling vía `GET /api/documentos/estado`) + `npm run embed` (CLI) — procesa documentos con texto extraído que aún no tienen chunks.
 4. `POST /api/licitaciones/:codigoExterno/preguntas` (`{ pregunta }`): embebe la pregunta, busca los k chunks más cercanos por similitud coseno acotado a esa licitación, arma un prompt con ese contexto + la pregunta y responde vía `ollamaClient.chat()`. La respuesta indica qué documentos/chunks se usaron como fuente.
-5. Frontend: caja de chat en el detalle de licitación, visible solo cuando la licitación tiene al menos un documento con chunks generados.
+5. Frontend: caja de chat en el detalle de licitación, visible solo cuando la licitación tiene al menos un documento con chunks generados. `GET /api/licitaciones/:codigoExterno` y el listado de documentos suman `chunksCount` por documento para poder decidirlo sin traerse los embeddings.
 
 Fuera de alcance de esta fase: búsqueda semántica global sobre todo el corpus (discutido, no elegido).
+
+### Decisiones resueltas al implementar
+
+- **Historial persistido** en `LicitacionPregunta` (`pregunta`, `respuesta`, `fuentes` jsonb, `modelo`, `promptVersion`, `duracionMs`) + `GET /api/licitaciones/:codigoExterno/preguntas`: el chat sobrevive a recargas, coherente con que toda salida de LLM en la app se guarda con sus metadatos. Solo se persisten los intercambios exitosos — si el modelo falla, sale un 502 y no se escribe nada.
+- **Sin streaming**: `POST` que espera y devuelve el JSON completo, igual que análisis/matching. Se puede añadir SSE después sin romper el contrato.
+- **Embedding solo manual**, nunca automático al subir un documento: respeta la regla de las Fases 3/4/6 de que ningún LLM se dispara solo.
+- **Sin índice vectorial (ni HNSW ni IVFFlat)**, y no por simplicidad: la búsqueda siempre filtra por `licitacionId`, y pgvector post-filtra — el índice buscaría los vecinos de todo el corpus y recién después descartaría los de otras licitaciones, pudiendo devolver cero resultados para la licitación consultada. El B-tree de `licitacionId` ya deja decenas de filas, sobre las que el scan exacto es correcto y sub-milisegundo. Revisar solo si aparece la búsqueda global (hoy fuera de alcance).
+- **La respuesta se genera en texto plano, sin JSON schema** (a diferencia de análisis/matching): la salida es prosa, y una gramática obligaría al modelo a escapar cada comilla y salto de línea, tirando la generación entera por una string mal cerrada. Las **fuentes se derivan de la búsqueda por similitud, no de lo que diga el modelo**, así no puede citar documentos que nunca estuvieron en su contexto.
+- **`num_ctx` explícito (`OLLAMA_RAG_NUM_CTX`, default 8192)**: Ollama trunca el prompt en silencio a `num_ctx` (default 4096) descartando los tokens más viejos. El prompt real medido con 5 fragmentos ronda los 5000 tokens, así que con el default se perdían el system prompt y los fragmentos más relevantes (van ordenados por similitud) — un chat que responde genérico o inventa sin un solo error en los logs. Por lo mismo `OLLAMA_RAG_TIMEOUT_MS` (180s) va aparte del timeout de análisis/matching.
+- **La imagen de postgres es `pgvector/pgvector:pg16-trixie`, no `pg16` a secas**: el tag por defecto es bookworm (glibc 2.36) y la BD se creó con `postgres:16` (trixie, glibc 2.41). Bajar de glibc deja los índices B-tree de texto ordenados con reglas que ya no coinciden con las del motor ("collation version mismatch"), lo que puede romper búsquedas y el UNIQUE de `codigoExterno`. Con el tag trixie el volumen `pgdata` se reusa sin warnings ni REINDEX.
+- Al cambiar el schema hay que correr `prisma generate` **dentro del contenedor** del backend: usa su propio `node_modules` (volumen anónimo), así que regenerarlo solo en el host deja al contenedor con el Client viejo.
+
+Detalle completo del diseño en el plan de la sesión (`/home/genkah/.claude/plans/lee-plan-md-y-planifica-jaunty-wave.md`).

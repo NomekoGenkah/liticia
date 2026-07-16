@@ -13,6 +13,12 @@ import { ESTADOS_FILTRO_INGESTA, type EstadoFiltroIngesta } from "@/types/api";
 
 const SIN_FILTRO = "__todos__";
 
+// Sin `items`, Select.Value de Base UI muestra el value crudo en vez de la etiqueta.
+const ESTADO_ITEMS = [
+  { value: SIN_FILTRO, label: "Todos" },
+  ...ESTADOS_FILTRO_INGESTA.map((estado) => ({ value: estado, label: estado })),
+];
+
 export function IngestaPanel() {
   const queryClient = useQueryClient();
   const [fecha, setFecha] = useState("");
@@ -61,6 +67,7 @@ export function IngestaPanel() {
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="ingesta-estado">Estado</Label>
             <Select
+              items={ESTADO_ITEMS}
               value={estado ?? SIN_FILTRO}
               onValueChange={(v) => setEstado(!v || v === SIN_FILTRO ? undefined : (v as EstadoFiltroIngesta))}
             >
@@ -68,10 +75,9 @@ export function IngestaPanel() {
                 <SelectValue placeholder="Todos" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={SIN_FILTRO}>Todos</SelectItem>
-                {ESTADOS_FILTRO_INGESTA.map((e) => (
-                  <SelectItem key={e} value={e}>
-                    {e}
+                {ESTADO_ITEMS.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
                   </SelectItem>
                 ))}
               </SelectContent>

@@ -9,6 +9,7 @@ import type {
 import type { perfilEmpresaRepository } from "../repositories/perfilEmpresaRepository";
 import type { licitacionRepository } from "../repositories/licitacionRepository";
 import { NotFoundError, UnprocessableEntityError } from "../utils/errors";
+import { segmentosDe } from "../utils/unspsc";
 import { buildMatchingPrompt, MATCHING_PROMPT_VERSION } from "./matchingPrompt";
 
 export interface MatchingPendientesResumen {
@@ -100,7 +101,15 @@ export class MatchingLicitacionesService {
     }
 
     const perfilParaMatching = toPerfilParaMatching(perfil);
-    const pendientes = await this.matchingRepo.listarPendientesActivas(perfil.version);
+
+    // Solo acota el batch; matchearUna() sigue evaluando cualquier licitación que le pidas.
+    const segmentos = segmentosDe(perfil.categoriasUnspsc);
+    const pendientes = await this.matchingRepo.listarPendientesActivas(perfil.version, segmentos);
+
+    if (segmentos.length > 0) {
+      logger.info({ segmentos, pendientes: pendientes.length }, "Matching acotado a los segmentos UNSPSC del perfil");
+    }
+
     const resumen: MatchingPendientesResumen = {
       totalEncontradas: pendientes.length,
       totalCompletadas: 0,

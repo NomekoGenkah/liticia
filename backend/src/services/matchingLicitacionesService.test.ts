@@ -161,7 +161,8 @@ describe("MatchingLicitacionesService.matchearPendientes", () => {
     expect(resumen).toEqual({ totalEncontradas: 3, totalCompletadas: 2, totalFallidas: 1 });
     expect(matchingRepo.guardarCompletado).toHaveBeenCalledTimes(2);
     expect(matchingRepo.guardarFallido).toHaveBeenCalledTimes(1);
-    expect(matchingRepo.listarPendientesActivas).toHaveBeenCalledWith(1);
+    // El batch va acotado a la versión del perfil y a los segmentos UNSPSC que declara.
+    expect(matchingRepo.listarPendientesActivas).toHaveBeenCalledWith(1, ["72"]);
   });
 
   it("devuelve contadores en cero si no hay pendientes", async () => {

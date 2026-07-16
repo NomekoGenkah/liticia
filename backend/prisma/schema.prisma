@@ -49,6 +49,8 @@ model Licitacion {
   analisis   LicitacionAnalisis?
   matching   LicitacionMatching?
   documentos LicitacionDocumento[]
+  chunks     LicitacionDocumentoChunk[]
+  preguntas  LicitacionPregunta[]
 
   @@index([codigoEstado])
   @@index([fechaCierre])
@@ -216,6 +218,52 @@ model LicitacionDocumento {
 
   fechaCarga DateTime @default(now())
 
+  chunks LicitacionDocumentoChunk[]
+
   @@index([licitacionId])
   @@index([estadoExtraccion])
+}
+
+model LicitacionDocumentoChunk {
+  id           String              @id @default(uuid())
+  documentoId  String
+  documento    LicitacionDocumento @relation(fields: [documentoId], references: [id], onDelete: Cascade)
+  licitacionId String
+  licitacion   Licitacion          @relation(fields: [licitacionId], references: [id], onDelete: Cascade)
+
+  contenido  String @db.Text
+  chunkIndex Int
+
+  /// Prisma no tipa `vector(n)`: el campo no existe en el Client generado, así que no se puede
+  /// insertar con `create()` (la columna es NOT NULL sin default) ni seleccionar. Toda escritura
+  /// y toda búsqueda por similitud pasan por $executeRaw/$queryRaw en documentoChunkRepository.
+  embedding Unsupported("vector(768)")
+
+  /// Con qué modelo se generó el embedding. Dos vectores solo son comparables si salieron del
+  /// mismo modelo: sin esto, cambiar OLLAMA_EMBED_MODEL degradaría el ranking en silencio.
+  modelo     String
+  generadoEn DateTime @default(now())
+
+  @@unique([documentoId, chunkIndex])
+  @@index([licitacionId])
+}
+
+model LicitacionPregunta {
+  id           String     @id @default(uuid())
+  licitacionId String
+  licitacion   Licitacion @relation(fields: [licitacionId], references: [id], onDelete: Cascade)
+
+  pregunta  String @db.Text
+  respuesta String @db.Text
+
+  /// PreguntaFuente[]: los chunks que se usaron como contexto, derivados de la búsqueda por
+  /// similitud (no de la salida del modelo, que podría citar documentos inexistentes).
+  fuentes Json
+
+  modelo        String
+  promptVersion Int
+  duracionMs    Int
+  creadoEn      DateTime @default(now())
+
+  @@index([licitacionId])
 }

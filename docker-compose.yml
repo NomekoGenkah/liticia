@@ -1,6 +1,11 @@
 services:
   postgres:
-    image: postgres:16
+    # Aporta la extensión `vector`, requerida por LicitacionDocumentoChunk.embedding.
+    # El sufijo -trixie NO es opcional: el tag `pg16` a secas es bookworm (glibc 2.36), y esta
+    # BD se creó con postgres:16 (trixie, glibc 2.41). Bajar de glibc deja los índices B-tree de
+    # texto ordenados con reglas que ya no coinciden con las del motor —"collation version
+    # mismatch"—, lo que puede romper búsquedas y el UNIQUE de "Licitacion.codigoExterno".
+    image: pgvector/pgvector:pg16-trixie
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER}

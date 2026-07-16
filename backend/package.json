@@ -12,6 +12,7 @@
     "ingest": "tsx src/jobs/ingestarLicitaciones.ts",
     "analyze": "tsx src/jobs/analizarLicitaciones.ts",
     "match": "tsx src/jobs/matchearLicitaciones.ts",
+    "embed": "tsx src/jobs/embeberDocumentos.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "dotenv -e ../.env -- prisma migrate dev",
     "typecheck": "tsc --noEmit",

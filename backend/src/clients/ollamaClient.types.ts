@@ -63,3 +63,10 @@ export interface MatchingLlmResultado {
   recomendacion: RecomendacionMatchingLlm;
   justificacion: string;
 }
+
+/** Un fragmento de documento recuperado por similitud, tal como se le pasa al prompt de RAG. */
+export interface ChunkParaPregunta {
+  nombreArchivo: string;
+  chunkIndex: number;
+  contenido: string;
+}

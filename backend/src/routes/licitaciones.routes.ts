@@ -4,6 +4,7 @@ import { licitacionRepository } from "../repositories/licitacionRepository";
 import { documentoLicitacionRepository } from "../repositories/documentoLicitacionRepository";
 import { analizarLicitacion } from "../services/analisisRunner";
 import { matchearLicitacion } from "../services/matchingRunner";
+import { listarPreguntas, responderPregunta } from "../services/preguntasRunner";
 import { DocumentosLicitacionService } from "../services/documentosLicitacionService";
 import { LicitacionQueryService, parseOrderBy } from "../services/licitacionQueryService";
 import { paginationSchema } from "../utils/pagination";
@@ -21,6 +22,9 @@ const listQuerySchema = paginationSchema.extend({
   orderBy: z.string().optional(),
   recomendacion: z.enum(["SI", "NO", "TAL_VEZ"]).optional(),
 });
+
+// El máximo evita que una pregunta desmedida desplace a los fragmentos dentro de OLLAMA_RAG_NUM_CTX.
+const preguntaBodySchema = z.object({ pregunta: z.string().trim().min(1).max(2000) });
 
 export const licitacionesRouter = Router();
 
@@ -100,6 +104,34 @@ licitacionesRouter.delete("/:codigoExterno/documentos/:id", async (req, res, nex
   try {
     await documentosService.eliminar(req.params.codigoExterno, req.params.id);
     res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+});
+
+licitacionesRouter.post("/:codigoExterno/preguntas", async (req, res, next) => {
+  try {
+    // safeParse y no .parse(): un ZodError no es AppError, así que el errorHandler lo devolvería
+    // como 500 y una pregunta vacía es un 4xx. Mismo patrón que ARCHIVO_REQUERIDO más arriba.
+    const parsed = preguntaBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      throw new UnprocessableEntityError(
+        "Debes enviar una pregunta no vacía de hasta 2000 caracteres",
+        "PREGUNTA_REQUERIDA"
+      );
+    }
+
+    const respuesta = await responderPregunta(req.params.codigoExterno, parsed.data.pregunta);
+    res.status(201).json(respuesta);
+  } catch (err) {
+    next(err);
+  }
+});
+
+licitacionesRouter.get("/:codigoExterno/preguntas", async (req, res, next) => {
+  try {
+    const preguntas = await listarPreguntas(req.params.codigoExterno);
+    res.json(preguntas);
   } catch (err) {
     next(err);
   }

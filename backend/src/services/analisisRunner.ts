@@ -3,6 +3,7 @@ import { config } from "../config/env";
 import { logger } from "../config/logger";
 import { analisisLicitacionRepository } from "../repositories/analisisLicitacionRepository";
 import { licitacionRepository } from "../repositories/licitacionRepository";
+import { perfilEmpresaRepository } from "../repositories/perfilEmpresaRepository";
 import { ConflictError } from "../utils/errors";
 import { AnalisisLicitacionesService, type AnalisisPendientesResumen } from "./analisisLicitacionesService";
 
@@ -19,7 +20,12 @@ function getAnalisisService(): AnalisisLicitacionesService {
       think: config.OLLAMA_THINK,
     });
 
-    servicio = new AnalisisLicitacionesService(client, licitacionRepository, analisisLicitacionRepository);
+    servicio = new AnalisisLicitacionesService(
+      client,
+      licitacionRepository,
+      analisisLicitacionRepository,
+      perfilEmpresaRepository
+    );
   }
 
   return servicio;
