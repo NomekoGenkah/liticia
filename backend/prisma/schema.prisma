@@ -1,0 +1,94 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Licitacion {
+  id            String @id @default(uuid())
+  codigoExterno String @unique
+  nombre        String
+  codigoEstado  Int
+  estado        String
+  descripcion   String? @db.Text
+
+  nombreOrganismo String?
+  codigoOrganismo String?
+  rutOrganismo    String?
+  regionUnidad    String?
+  comunaUnidad    String?
+
+  fechaPublicacion  DateTime?
+  fechaCierre       DateTime?
+  fechaAdjudicacion DateTime?
+
+  montoEstimado    Decimal? @db.Decimal(18, 2)
+  visibilidadMonto Int?
+  moneda           String?
+
+  tipo            String?
+  codigoTipo      Int?
+  etapas          Int?
+  estadoEtapas    String?
+  subContratacion Int?
+
+  urlActaAdjudicacion String?
+  urlFichaPublica     String
+
+  rawResponse Json
+
+  primeraVezVisto      DateTime  @default(now())
+  ultimaActualizacion  DateTime  @updatedAt
+  fechaDetalleObtenido DateTime?
+  ultimoEstadoConocido Int?
+
+  items LicitacionItem[]
+
+  @@index([codigoEstado])
+  @@index([fechaCierre])
+  @@index([fechaPublicacion])
+  @@index([codigoOrganismo])
+}
+
+model LicitacionItem {
+  id              String     @id @default(uuid())
+  licitacionId    String
+  licitacion      Licitacion @relation(fields: [licitacionId], references: [id], onDelete: Cascade)
+  nombreProducto  String
+  categoriaUnspsc String?
+  cantidad        Int?
+  unidadMedida    String?
+
+  @@index([licitacionId])
+  @@index([categoriaUnspsc])
+}
+
+model ApiRequestCounter {
+  id            String   @id @default(uuid())
+  fecha         DateTime @unique @db.Date
+  contador      Int      @default(0)
+  limiteDiario  Int      @default(10000)
+  actualizadoEn DateTime @updatedAt
+}
+
+enum IngestaEstado {
+  EN_PROCESO
+  COMPLETADO
+  FALLIDO
+}
+
+model IngestaRun {
+  id                String        @id @default(uuid())
+  parametros        Json?
+  fechaInicio       DateTime      @default(now())
+  fechaFin          DateTime?
+  totalEncontradas  Int           @default(0)
+  totalNuevas       Int           @default(0)
+  totalActualizadas Int           @default(0)
+  totalErrores      Int           @default(0)
+  estado            IngestaEstado @default(EN_PROCESO)
+  detalleError      String?       @db.Text
+}

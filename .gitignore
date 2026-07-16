@@ -1,0 +1,16 @@
+node_modules/
+dist/
+build/
+
+.env
+.env.local
+
+storage/logs/*
+!storage/logs/.gitkeep
+
+*.log
+npm-debug.log*
+
+.DS_Store
+
+backend/prisma/migrations/**/migration.sql.bak
