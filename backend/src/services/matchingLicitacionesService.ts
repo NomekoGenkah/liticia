@@ -23,6 +23,7 @@ interface LicitacionParaProcesar extends LicitacionParaMatching {
 }
 
 function toPerfilParaMatching(perfil: {
+  tipo: PerfilEmpresaParaMatching["tipo"];
   nombre: string;
   descripcion: string;
   rubro: string | null;
@@ -33,6 +34,7 @@ function toPerfilParaMatching(perfil: {
   montoMaximo: unknown;
 }): PerfilEmpresaParaMatching {
   return {
+    tipo: perfil.tipo,
     nombre: perfil.nombre,
     descripcion: perfil.descripcion,
     rubro: perfil.rubro,

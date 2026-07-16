@@ -135,10 +135,16 @@ model LicitacionAnalisis {
   @@index([estado])
 }
 
+enum TipoPerfil {
+  EMPRESA
+  PERSONA_NATURAL
+}
+
 model PerfilEmpresa {
-  id          String @id @default(uuid())
+  id          String     @id @default(uuid())
+  tipo        TipoPerfil @default(EMPRESA)
   nombre      String
-  descripcion String @db.Text
+  descripcion String     @db.Text
 
   rubro            String?
   palabrasClave    String[] @default([])

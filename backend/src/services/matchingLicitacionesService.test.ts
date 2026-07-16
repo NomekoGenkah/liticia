@@ -9,6 +9,7 @@ import type { LicitacionParaMatchingPendiente } from "../repositories/matchingLi
 
 const perfilBase = {
   id: "perfil-1",
+  tipo: "EMPRESA" as const,
   nombre: "Servicios Climáticos SpA",
   descripcion: "Empresa de mantención de climatización.",
   rubro: "Climatización",

@@ -3,6 +3,7 @@ import { buildMatchingPrompt, MATCHING_PROMPT_VERSION } from "./matchingPrompt";
 import type { LicitacionParaMatching, PerfilEmpresaParaMatching } from "../clients/ollamaClient.types";
 
 const perfilBase: PerfilEmpresaParaMatching = {
+  tipo: "EMPRESA",
   nombre: "Servicios Climáticos SpA",
   descripcion: "Empresa de mantención de equipos de climatización para edificios públicos y privados.",
   rubro: "Climatización",
@@ -31,7 +32,7 @@ const licitacionBase: LicitacionParaMatching = {
 
 describe("buildMatchingPrompt", () => {
   it("expone MATCHING_PROMPT_VERSION como constante estable", () => {
-    expect(MATCHING_PROMPT_VERSION).toBe(1);
+    expect(MATCHING_PROMPT_VERSION).toBe(2);
   });
 
   it("incluye los campos clave del perfil y de la licitación analizada en el prompt de usuario", () => {
@@ -70,6 +71,27 @@ describe("buildMatchingPrompt", () => {
 
     expect(user).toMatch(/no declaradas/i);
     expect(user).toMatch(/no declarado/i);
+  });
+
+  it("refleja el tipo de postulante (empresa vs persona natural) en el prompt de usuario", () => {
+    const { user: userEmpresa } = buildMatchingPrompt(perfilBase, licitacionBase);
+    expect(userEmpresa).toMatch(/Tipo de postulante: Empresa/);
+
+    const perfilPersonaNatural: PerfilEmpresaParaMatching = {
+      ...perfilBase,
+      tipo: "PERSONA_NATURAL",
+      nombre: "Juan Pérez",
+      descripcion: "Técnico independiente en mantención de equipos de climatización.",
+    };
+    const { user: userPersona } = buildMatchingPrompt(perfilPersonaNatural, licitacionBase);
+    expect(userPersona).toMatch(/Tipo de postulante: Persona natural/);
+  });
+
+  it("el prompt de sistema instruye a considerar el tipo de postulante sin asumir exigencias no declaradas", () => {
+    const { system } = buildMatchingPrompt(perfilBase, licitacionBase);
+
+    expect(system).toMatch(/tipo de postulante/i);
+    expect(system).toMatch(/persona natural/i);
   });
 
   it("cuando el análisis de la licitación no tiene resumen ni puntos clave, lo indica como no disponible", () => {

@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { PerfilEmpresaService } from "./perfilEmpresaService";
 
 const perfilInput = {
+  tipo: "EMPRESA" as const,
   nombre: "Servicios Climáticos SpA",
   descripcion: "Empresa de mantención de climatización.",
   rubro: "Climatización",

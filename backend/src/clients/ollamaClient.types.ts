@@ -27,6 +27,7 @@ export interface AnalisisLlmResultado {
 }
 
 export interface PerfilEmpresaParaMatching {
+  tipo: "EMPRESA" | "PERSONA_NATURAL";
   nombre: string;
   descripcion: string;
   rubro: string | null;

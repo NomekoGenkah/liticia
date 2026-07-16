@@ -1,16 +1,22 @@
 import type { MatchingPrompt } from "../clients/ollamaClient";
 import type { LicitacionParaMatching, PerfilEmpresaParaMatching } from "../clients/ollamaClient.types";
 
-export const MATCHING_PROMPT_VERSION = 1;
+export const MATCHING_PROMPT_VERSION = 2;
 
-const SYSTEM_PROMPT = `Eres un asistente que evalúa si a una empresa le conviene postular a una licitación pública chilena (Mercado Público / ChileCompra) que ya fue analizada previamente.
+const SYSTEM_PROMPT = `Eres un asistente que evalúa si a un postulante (una empresa o una persona natural, según se indique en el perfil) le conviene postular a una licitación pública chilena (Mercado Público / ChileCompra) que ya fue analizada previamente.
 
 Reglas estrictas:
 - Responde ÚNICAMENTE con el objeto JSON solicitado, sin texto adicional antes o después, sin explicaciones.
-- Básate EXCLUSIVAMENTE en el perfil de la empresa y el análisis de la licitación que se te entregan. No inventes afinidad, requisitos ni motivos de descarte que no estén explícitamente respaldados por esos datos.
-- Si el perfil no declaró algún criterio (categorías, región, rango de monto), no lo uses como motivo de descarte — pondera más el calce semántico entre la descripción/rubro de la empresa y el resumen/palabras clave de la licitación.
+- Básate EXCLUSIVAMENTE en el perfil del postulante y el análisis de la licitación que se te entregan. No inventes afinidad, requisitos ni motivos de descarte que no estén explícitamente respaldados por esos datos.
+- Considera el tipo de postulante (empresa o persona natural): si la licitación declara explícitamente (en su nombre, resumen o puntos clave) que exige una persona jurídica u otro requisito que una persona natural no podría cumplir, refléjalo en la recomendación. No asumas esa exigencia si no está explícitamente declarada.
+- Si el perfil no declaró algún criterio (categorías, región, rango de monto), no lo uses como motivo de descarte — pondera más el calce semántico entre la descripción/rubro del postulante y el resumen/palabras clave de la licitación.
 - Usa "tal_vez" cuando la información disponible sea insuficiente para una recomendación segura, en vez de forzar "si" o "no".
 - Todo el texto de salida debe estar en español.`;
+
+const TIPO_PERFIL_LABEL: Record<PerfilEmpresaParaMatching["tipo"], string> = {
+  EMPRESA: "Empresa",
+  PERSONA_NATURAL: "Persona natural",
+};
 
 function formatLista(items: string[], vacio: string): string {
   return items.length > 0 ? items.join(", ") : vacio;
@@ -32,7 +38,8 @@ function formatFecha(fecha: Date | null): string {
 }
 
 function formatPerfil(perfil: PerfilEmpresaParaMatching): string {
-  return `Nombre: ${perfil.nombre}
+  return `Tipo de postulante: ${TIPO_PERFIL_LABEL[perfil.tipo]}
+Nombre: ${perfil.nombre}
 Descripción: ${perfil.descripcion}
 Rubro: ${perfil.rubro ?? "no informado"}
 Palabras clave de interés: ${formatLista(perfil.palabrasClave, "no declaradas")}
@@ -59,16 +66,16 @@ export function buildMatchingPrompt(
   perfil: PerfilEmpresaParaMatching,
   licitacion: LicitacionParaMatching
 ): MatchingPrompt {
-  const user = `Evalúa si a la siguiente empresa le conviene postular a la siguiente licitación y responde con el JSON solicitado.
+  const user = `Evalúa si al siguiente postulante le conviene postular a la siguiente licitación y responde con el JSON solicitado.
 
-Perfil de la empresa:
+Perfil del postulante:
 ${formatPerfil(perfil)}
 
 Licitación (ya analizada):
 ${formatLicitacion(licitacion)}
 
 Genera un objeto JSON con estos campos:
-- "puntaje": número entero de 0 a 100 que refleje qué tan bien calza la licitación con el perfil de la empresa, ponderando rubro/palabras clave/categorías UNSPSC, si el monto estimado cae dentro del rango de interés declarado (si hay uno) y si la región calza (si se declaró alguna).
+- "puntaje": número entero de 0 a 100 que refleje qué tan bien calza la licitación con el perfil del postulante, ponderando rubro/palabras clave/categorías UNSPSC, si el monto estimado cae dentro del rango de interés declarado (si hay uno), si la región calza (si se declaró alguna) y si el tipo de postulante (empresa o persona natural) es compatible con lo que la licitación exige explícitamente.
 - "recomendacion": "si", "no" o "tal_vez", según la conveniencia de postular.
 - "justificacion": 1 a 3 oraciones explicando el puntaje y la recomendación en términos de los datos entregados.`;
 

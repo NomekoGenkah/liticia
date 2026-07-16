@@ -1,6 +1,8 @@
+import type { TipoPerfil } from "@prisma/client";
 import { prisma } from "../config/prisma";
 
 export interface PerfilEmpresaInput {
+  tipo: TipoPerfil;
   nombre: string;
   descripcion: string;
   rubro: string | null;

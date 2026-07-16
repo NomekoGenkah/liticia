@@ -6,6 +6,7 @@ import { PerfilEmpresaService } from "../services/perfilEmpresaService";
 const perfilEmpresaService = new PerfilEmpresaService(perfilEmpresaRepository);
 
 const guardarBodySchema = z.object({
+  tipo: z.enum(["EMPRESA", "PERSONA_NATURAL"]).default("EMPRESA"),
   nombre: z.string().min(1),
   descripcion: z.string().min(1),
   rubro: z.string().optional(),
@@ -31,6 +32,7 @@ perfilEmpresaRouter.put("/", async (req, res, next) => {
   try {
     const body = guardarBodySchema.parse(req.body ?? {});
     const perfil = await perfilEmpresaService.guardar({
+      tipo: body.tipo,
       nombre: body.nombre,
       descripcion: body.descripcion,
       rubro: body.rubro ?? null,
