@@ -21,6 +21,7 @@ healthRouter.get("/", async (_req, res) => {
     status: dbStatus === "ok" ? "ok" : "degraded",
     db: dbStatus,
     requestsHoyChileCompra: contadorHoy?.contador ?? 0,
-    limiteDiario: contadorHoy?.limiteDiario ?? config.CHILECOMPRA_MAX_REQUESTS_DIA,
+    // El tope vigente, no el que tuviera la fila de hoy: si se cambió el .env, manda el nuevo.
+    limiteDiario: config.CHILECOMPRA_MAX_REQUESTS_DIA,
   });
 });

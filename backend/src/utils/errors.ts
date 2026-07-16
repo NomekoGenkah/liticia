@@ -24,9 +24,14 @@ export class ChileCompraApiError extends AppError {
   }
 }
 
+/**
+ * Tope propio de requests diarias, no un rechazo de ChileCompra: lo lanza el guardarraíl local
+ * antes de salir a la red. Por eso el código no dice "CHILECOMPRA" — culpar a la API de un límite
+ * que se puso uno mismo manda a depurar al lugar equivocado.
+ */
 export class ApiRateLimitError extends AppError {
   constructor(message: string) {
-    super(message, 429, "CHILECOMPRA_RATE_LIMIT");
+    super(message, 429, "LIMITE_LOCAL_REQUESTS");
   }
 }
 
