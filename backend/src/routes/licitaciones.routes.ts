@@ -14,6 +14,7 @@ const listQuerySchema = paginationSchema.extend({
   fechaCierreDesde: z.coerce.date().optional(),
   fechaCierreHasta: z.coerce.date().optional(),
   orderBy: z.string().optional(),
+  recomendacion: z.enum(["SI", "NO", "TAL_VEZ"]).optional(),
 });
 
 export const licitacionesRouter = Router();
@@ -29,6 +30,7 @@ licitacionesRouter.get("/", async (req, res, next) => {
         codigoOrganismo: query.codigoOrganismo,
         fechaCierreDesde: query.fechaCierreDesde,
         fechaCierreHasta: query.fechaCierreHasta,
+        recomendacion: query.recomendacion,
       },
       orderBy,
       { page: query.page, pageSize: query.pageSize }

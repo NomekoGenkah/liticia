@@ -2,7 +2,7 @@ import type { licitacionRepository, LicitacionFiltros, OrderBy } from "../reposi
 import { NotFoundError } from "../utils/errors";
 import { buildPaginationMeta, toSkipTake, type Pagination } from "../utils/pagination";
 
-const ORDER_BY_WHITELIST = ["fechaPublicacion", "fechaCierre", "montoEstimado"] as const;
+const ORDER_BY_WHITELIST = ["fechaPublicacion", "fechaCierre", "montoEstimado", "puntaje"] as const;
 
 export function parseOrderBy(raw: string | undefined): OrderBy {
   if (!raw) return { field: "fechaPublicacion", direction: "desc" };

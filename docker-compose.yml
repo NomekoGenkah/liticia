@@ -36,11 +36,19 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
-  # frontend:
-  #   # Se activa en Fase 5 (React + Vite + Tailwind + shadcn). Placeholder intencional.
-  #   build: ./frontend
-  #   ports:
-  #     - "5173:5173"
+  frontend:
+    build:
+      context: ./frontend
+    restart: unless-stopped
+    environment:
+      VITE_API_PROXY_TARGET: http://backend:3000
+    depends_on:
+      - backend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
 
 volumes:
   pgdata:

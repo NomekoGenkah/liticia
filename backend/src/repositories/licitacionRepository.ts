@@ -41,10 +41,11 @@ export interface LicitacionFiltros {
   codigoOrganismo?: string;
   fechaCierreDesde?: Date;
   fechaCierreHasta?: Date;
+  recomendacion?: "SI" | "NO" | "TAL_VEZ";
 }
 
 export interface OrderBy {
-  field: "fechaPublicacion" | "fechaCierre" | "montoEstimado";
+  field: "fechaPublicacion" | "fechaCierre" | "montoEstimado" | "puntaje";
   direction: "asc" | "desc";
 }
 
@@ -125,15 +126,25 @@ export const licitacionRepository = {
             },
           }
         : {}),
+      ...(filtros.recomendacion ? { matching: { recomendacion: filtros.recomendacion } } : {}),
     };
+
+    const prismaOrderBy: Prisma.LicitacionOrderByWithRelationInput =
+      orderBy.field === "puntaje"
+        ? { matching: { puntaje: orderBy.direction } }
+        : { [orderBy.field]: orderBy.direction };
 
     const [data, total] = await prisma.$transaction([
       prisma.licitacion.findMany({
         where,
-        orderBy: { [orderBy.field]: orderBy.direction },
+        orderBy: prismaOrderBy,
         skip,
         take,
         omit: { rawResponse: true },
+        include: {
+          analisis: { select: { estado: true, nivelComplejidad: true } },
+          matching: { select: { estado: true, puntaje: true, recomendacion: true } },
+        },
       }),
       prisma.licitacion.count({ where }),
     ]);

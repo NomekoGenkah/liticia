@@ -25,6 +25,8 @@ Se investigó el flujo real de la ficha pública de una licitación en mercadopu
 
 **Consecuencia**: la Fase 1 no incluye `FichaScraperClient`, descarga de PDFs/DOCX ni extracción de texto. En su lugar, cada licitación guarda `urlFichaPublica` (construida directamente desde `codigoExterno`, sin scraping) para que el usuario abra la ficha real y descargue los anexos manualmente cuando quiera postular. La estrategia de adquisición de documentos para que la IA los pueda analizar (Fase 3) — ya sea navegador semi-asistido con el usuario resolviendo el captcha, o carga manual de PDFs — queda pendiente de decidir en una fase futura, no se diseña por adelantado.
 
+**Resuelto en la Fase 6**: se descartó explícitamente automatizar o asistir la resolución del captcha (habría revertido esta decisión) y también un servicio de resolución de captcha de terceros (evasión de un mecanismo antibot, además de romper el ToS del sitio). Se eligió carga manual — el usuario descarga los anexos como cualquier persona y los sube a LicitIA.
+
 ## Tabla de fases
 
 | Fase | Nombre | Estado |
@@ -33,8 +35,9 @@ Se investigó el flujo real de la ficha pública de una licitación en mercadopu
 | 2 | Scheduling + botón manual | Hecho |
 | 3 | IA: resumen y extracción por licitación | Hecho |
 | 4 | Perfil de empresa + matching con IA | Hecho |
-| 5 | Frontend completo | Pendiente |
-| 6 | RAG (opcional, a confirmar antes de iniciar) | Pendiente |
+| 5 | Frontend completo | Hecho |
+| 6 | Ingesta de documentos (carga manual) | Pendiente |
+| 7 | RAG: preguntas y respuestas sobre documentos | Pendiente |
 
 ## Fase 1 — Ingesta base (alcance)
 
@@ -67,3 +70,34 @@ El usuario (mono-usuario, app 100% local) declara un único perfil de empresa (`
 3. `GET`/`PUT /api/perfil-empresa` para leer/crear-actualizar el perfil (404 `PERFIL_EMPRESA_NO_CONFIGURADO` si aún no existe).
 
 Detalle completo del diseño en el plan de la sesión (`/home/genkah/.claude/plans/lee-plan-md-y-planea-steady-turtle.md`).
+
+## Fase 5 — Frontend completo (alcance)
+
+`frontend/` (React + Vite + TS + Tailwind + shadcn/ui, primitivas `@base-ui/react` + TanStack Query + React Router), servido en dev con `npm run dev` (puerto 5173, proxy `/api` → backend) o vía `docker compose up frontend`. Cuatro páginas: listado de licitaciones con filtros (estado, organismo, recomendación IA, orden) y tabla con badge de análisis/matching por fila; detalle de licitación (datos generales, ítems, tarjetas de análisis y matching con botón para generarlos, visor de JSON crudo); perfil de empresa (formulario, maneja el 404 `PERFIL_EMPRESA_NO_CONFIGURADO`); procesos (disparo manual de ingesta + histórico de runs, y disparo de los batches de análisis/matching pendientes con polling de `GET .../estado`).
+
+**Cambio de backend que habilitó esto**: `GET /api/licitaciones` ahora incluye un resumen de `analisis`/`matching` por licitación (antes solo lo traía el detalle) y suma el filtro `recomendacion` y el `orderBy=puntaje` — así la tabla principal no necesita un request por fila para mostrar el veredicto de matching.
+
+Detalle completo del diseño en el plan de la sesión (`/home/genkah/.claude/plans/foamy-dazzling-stroustrup.md`).
+
+## Fase 6 — Ingesta de documentos (carga manual) (alcance)
+
+Resuelve la decisión que quedó pendiente en la Fase 1. Se descartaron dos caminos automatizados (navegador semi-asistido resolviendo el captcha, y un servicio de terceros para evadirlo) por revertir esa decisión y/o romper el ToS del sitio. El camino elegido es carga manual: el usuario descarga los anexos desde `urlFichaPublica` como cualquier persona y los sube a LicitIA — cero automatización adicional sobre mercadopublico.cl.
+
+1. Modelo `LicitacionDocumento` (`licitacionId`, `nombreArchivo`, `mimeType`, `tamañoBytes`, `rutaAlmacenamiento`, `textoExtraido` nullable, `estadoExtraccion` `PENDIENTE`/`COMPLETADO`/`FALLIDO`, `detalleError`, `fechaCarga`). Archivos en disco bajo `storage/documentos/{licitacionId}/`, mismo patrón que `storage/logs/`.
+2. `POST /api/licitaciones/:codigoExterno/documentos` (multipart vía `multer`, dependencia nueva) sube el archivo y extrae el texto en el mismo request — a diferencia de las Fases 3/4, no hace falta el patrón asíncrono 202+polling porque extraer texto no depende de un LLM y es rápido. Tipos permitidos: PDF (`pdf-parse`), DOCX (`mammoth`) y XLSX (`exceljs` o similar, extrayendo el contenido de las celdas como texto plano) — límite 20MB por archivo; otros tipos se rechazan en la subida.
+3. `GET /api/licitaciones/:codigoExterno/documentos` (listado) y `DELETE .../documentos/:id` (borra archivo + registro).
+4. Frontend: card "Documentos" en el detalle de licitación (junto a Análisis y Matching de la Fase 5) — dropzone, lista con badge de estado de extracción, botón eliminar.
+
+Esta fase entrega valor por sí sola (texto extraído de los documentos, visible aunque no haya RAG todavía) y es el insumo obligatorio de la Fase 7.
+
+## Fase 7 — RAG: preguntas y respuestas sobre documentos (alcance)
+
+**Dependencia dura con la Fase 6**: solo opera sobre licitaciones con al menos un `LicitacionDocumento` con `textoExtraido`. Alcance elegido: preguntas y respuestas ancladas en los documentos de **una licitación puntual** — no un buscador semántico sobre todo el corpus (se discutió y se descartó deliberadamente para esta fase; si surge la necesidad más adelante se planifica aparte).
+
+1. `LicitacionDocumentoChunk` (`documentoId`, `licitacionId` denormalizado, `contenido`, `chunkIndex`, `embedding vector(768)`, `generadoEn`). Requiere la extensión `pgvector`: cambia la imagen del servicio `postgres` en `docker-compose.yml` a `pgvector/pgvector:pg16` + migración `CREATE EXTENSION vector`. Prisma no tipa `vector(n)` nativamente — el campo se declara `Unsupported("vector(768)")` y la búsqueda por similitud se hace con `$queryRaw`.
+2. Los documentos con `textoExtraido` se parten en chunks (~500-1000 tokens con solape) y cada chunk se embebe con `OllamaClient.generarEmbedding()`, usando `nomic-embed-text` (768 dimensiones) como modelo de embeddings por defecto — separado del modelo de chat, configurable vía `OLLAMA_EMBED_MODEL`.
+3. Disparo manual, mismo patrón que Fases 3/4: `POST /api/documentos/pendientes` (batch asíncrono, 202 + polling vía `GET /api/documentos/estado`) + `npm run embed` (CLI) — procesa documentos con texto extraído que aún no tienen chunks.
+4. `POST /api/licitaciones/:codigoExterno/preguntas` (`{ pregunta }`): embebe la pregunta, busca los k chunks más cercanos por similitud coseno acotado a esa licitación, arma un prompt con ese contexto + la pregunta y responde vía `ollamaClient.chat()`. La respuesta indica qué documentos/chunks se usaron como fuente.
+5. Frontend: caja de chat en el detalle de licitación, visible solo cuando la licitación tiene al menos un documento con chunks generados.
+
+Fuera de alcance de esta fase: búsqueda semántica global sobre todo el corpus (discutido, no elegido).
