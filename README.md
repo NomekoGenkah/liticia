@@ -120,8 +120,21 @@ Ver `.env.example` para la lista completa con comentarios. Las más relevantes p
 - `OLLAMA_URL` / `OLLAMA_MODEL`: dónde está Ollama y qué modelo usar para análisis, matching y respuestas.
 - `OLLAMA_EMBED_MODEL`: modelo de embeddings del RAG (default `nomic-embed-text`). Debe ser de 768 dimensiones — la columna `vector(768)` lo asume, y cambiarlo obliga a re-indexar los documentos.
 - `OLLAMA_RAG_NUM_CTX` / `RAG_TOP_K`: ventana de contexto y cuántos fragmentos se le pasan al modelo en cada pregunta. Subir `RAG_TOP_K` sin subir `OLLAMA_RAG_NUM_CTX` hace que Ollama trunque el prompt en silencio.
+- `CHILECOMPRA_MAX_REQUESTS_DIA`: tope propio de requests diarias a ChileCompra (default 10.000, que es el límite real del ticket y no es modificable). Al alcanzarlo, la ingesta corta con un 429 `LIMITE_LOCAL_REQUESTS` — es tu guardarraíl, no un rechazo de ChileCompra. El contador se reinicia cada día y `GET /api/health` muestra cómo va.
 - `SCHEDULE_MODE` / `SCHEDULE_VALUE`: modo del scheduler de ingesta automática (`cron` con expresión de 5 campos, o `interval` en milisegundos).
 - `DATABASE_URL` / `POSTGRES_*`: conexión a Postgres.
+
+### Aplicar un cambio del `.env`
+
+Con Docker no basta `docker compose restart backend`: el `.env` se inyecta vía `env_file` **al crear** el contenedor, así que un restart reinicia el proceso pero conserva las variables viejas. Hay que recrearlo:
+
+```
+docker compose up -d --force-recreate backend
+```
+
+Es fácil de pasar por alto porque no falla: el backend arranca bien y sigue usando el valor anterior. Si cambiaste algo y no ves el efecto, empieza por acá — `GET /api/health` te dice qué tope tiene cargado de verdad.
+
+Corriendo fuera de Docker (`npm run dev`) no aplica: ahí el backend lee el `.env` de la raíz con dotenv en cada arranque, así que basta con reiniciar el proceso.
 
 ## Estructura del repo
 
