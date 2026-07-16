@@ -66,12 +66,15 @@ export class IngestaLicitacionesService {
     private readonly ingestaRunRepo: typeof ingestaRunRepository
   ) {}
 
-  async ingestar(filtros: IngestaFiltros): Promise<IngestaResumen> {
+  async ingestar(filtros: IngestaFiltros, disparadoPor: "MANUAL" | "CRON" = "MANUAL"): Promise<IngestaResumen> {
     const inicio = Date.now();
-    const run = await this.ingestaRunRepo.crear({
-      fecha: filtros.fecha?.toISOString() ?? null,
-      estado: filtros.estado ?? null,
-    });
+    const run = await this.ingestaRunRepo.crear(
+      {
+        fecha: filtros.fecha?.toISOString() ?? null,
+        estado: filtros.estado ?? null,
+      },
+      disparadoPor
+    );
 
     const resumen: IngestaResumen = { totalEncontradas: 0, totalNuevas: 0, totalActualizadas: 0, totalErrores: 0 };
 

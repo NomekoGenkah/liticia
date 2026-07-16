@@ -16,6 +16,13 @@ const envSchema = z.object({
 
   OLLAMA_URL: z.string().url().default("http://host.docker.internal:11434"),
   OLLAMA_MODEL: z.string().default("qwen3:8b"),
+  OLLAMA_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(60000),
+  OLLAMA_RETRY_MAX: z.coerce.number().int().min(0).default(2),
+  OLLAMA_RETRY_BASE_DELAY_MS: z.coerce.number().int().positive().default(1000),
+  OLLAMA_THINK: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((v) => v === "true"),
 
   SCHEDULE_MODE: z.enum(["cron", "interval"]).default("cron"),
   SCHEDULE_VALUE: z.string().default("0 2 * * *"),

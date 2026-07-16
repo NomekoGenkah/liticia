@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
 import { licitacionRepository } from "../repositories/licitacionRepository";
+import { analizarLicitacion } from "../services/analisisRunner";
+import { matchearLicitacion } from "../services/matchingRunner";
 import { LicitacionQueryService, parseOrderBy } from "../services/licitacionQueryService";
 import { paginationSchema } from "../utils/pagination";
 
@@ -43,6 +45,24 @@ licitacionesRouter.get("/:codigoExterno", async (req, res, next) => {
     const includeRaw = req.query.raw === "true";
     const licitacion = await queryService.obtenerDetalle(req.params.codigoExterno, includeRaw);
     res.json(licitacion);
+  } catch (err) {
+    next(err);
+  }
+});
+
+licitacionesRouter.post("/:codigoExterno/analisis", async (req, res, next) => {
+  try {
+    const resultado = await analizarLicitacion(req.params.codigoExterno);
+    res.json(resultado);
+  } catch (err) {
+    next(err);
+  }
+});
+
+licitacionesRouter.post("/:codigoExterno/matching", async (req, res, next) => {
+  try {
+    const resultado = await matchearLicitacion(req.params.codigoExterno);
+    res.json(resultado);
   } catch (err) {
     next(err);
   }

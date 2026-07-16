@@ -13,8 +13,8 @@ export class AppError extends Error {
 }
 
 export class NotFoundError extends AppError {
-  constructor(message: string) {
-    super(message, 404, "NOT_FOUND");
+  constructor(message: string, code: string = "NOT_FOUND") {
+    super(message, 404, code);
   }
 }
 
@@ -27,6 +27,24 @@ export class ChileCompraApiError extends AppError {
 export class ApiRateLimitError extends AppError {
   constructor(message: string) {
     super(message, 429, "CHILECOMPRA_RATE_LIMIT");
+  }
+}
+
+export class ConflictError extends AppError {
+  constructor(message: string, code: string = "CONFLICT") {
+    super(message, 409, code);
+  }
+}
+
+export class OllamaApiError extends AppError {
+  constructor(message: string) {
+    super(message, 502, "OLLAMA_API_ERROR");
+  }
+}
+
+export class UnprocessableEntityError extends AppError {
+  constructor(message: string, code: string = "UNPROCESSABLE_ENTITY") {
+    super(message, 422, code);
   }
 }
 

@@ -45,7 +45,9 @@ model Licitacion {
   fechaDetalleObtenido DateTime?
   ultimoEstadoConocido Int?
 
-  items LicitacionItem[]
+  items    LicitacionItem[]
+  analisis LicitacionAnalisis?
+  matching LicitacionMatching?
 
   @@index([codigoEstado])
   @@index([fechaCierre])
@@ -80,15 +82,107 @@ enum IngestaEstado {
   FALLIDO
 }
 
+enum IngestaDisparador {
+  MANUAL
+  CRON
+}
+
 model IngestaRun {
-  id                String        @id @default(uuid())
+  id                String            @id @default(uuid())
   parametros        Json?
-  fechaInicio       DateTime      @default(now())
+  disparadoPor      IngestaDisparador @default(MANUAL)
+  fechaInicio       DateTime          @default(now())
   fechaFin          DateTime?
-  totalEncontradas  Int           @default(0)
-  totalNuevas       Int           @default(0)
-  totalActualizadas Int           @default(0)
-  totalErrores      Int           @default(0)
-  estado            IngestaEstado @default(EN_PROCESO)
-  detalleError      String?       @db.Text
+  totalEncontradas  Int               @default(0)
+  totalNuevas       Int               @default(0)
+  totalActualizadas Int               @default(0)
+  totalErrores      Int               @default(0)
+  estado            IngestaEstado     @default(EN_PROCESO)
+  detalleError      String?           @db.Text
+}
+
+enum NivelComplejidad {
+  BAJA
+  MEDIA
+  ALTA
+}
+
+enum AnalisisEstado {
+  COMPLETADO
+  FALLIDO
+}
+
+model LicitacionAnalisis {
+  id           String     @id @default(uuid())
+  licitacionId String     @unique
+  licitacion   Licitacion @relation(fields: [licitacionId], references: [id], onDelete: Cascade)
+
+  resumenEjecutivo String?           @db.Text
+  puntosClave      String[]          @default([])
+  palabrasClave    String[]          @default([])
+  nivelComplejidad NivelComplejidad?
+
+  estado        AnalisisEstado
+  modelo        String
+  promptVersion Int
+  intentos      Int      @default(1)
+  duracionMs    Int?
+  detalleError  String?  @db.Text
+
+  generadoEn    DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  @@index([estado])
+}
+
+model PerfilEmpresa {
+  id          String @id @default(uuid())
+  nombre      String
+  descripcion String @db.Text
+
+  rubro            String?
+  palabrasClave    String[] @default([])
+  categoriasUnspsc String[] @default([])
+  regionesInteres  String[] @default([])
+  montoMinimo      Decimal? @db.Decimal(18, 2)
+  montoMaximo      Decimal? @db.Decimal(18, 2)
+
+  version       Int      @default(1)
+  actualizadoEn DateTime @updatedAt
+  creadoEn      DateTime @default(now())
+}
+
+enum RecomendacionMatching {
+  SI
+  NO
+  TAL_VEZ
+}
+
+enum MatchingEstado {
+  COMPLETADO
+  FALLIDO
+}
+
+model LicitacionMatching {
+  id           String     @id @default(uuid())
+  licitacionId String     @unique
+  licitacion   Licitacion @relation(fields: [licitacionId], references: [id], onDelete: Cascade)
+
+  puntaje       Int?
+  recomendacion RecomendacionMatching?
+  justificacion String?                @db.Text
+
+  estado        MatchingEstado
+  modelo        String
+  promptVersion Int
+  perfilVersion Int
+  intentos      Int      @default(1)
+  duracionMs    Int?
+  detalleError  String?  @db.Text
+
+  generadoEn    DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  @@index([estado])
+  @@index([recomendacion])
 }

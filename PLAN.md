@@ -30,9 +30,9 @@ Se investigó el flujo real de la ficha pública de una licitación en mercadopu
 | Fase | Nombre | Estado |
 |---|---|---|
 | 1 | Ingesta base | Hecho |
-| 2 | Scheduling + botón manual | Pendiente |
-| 3 | IA: resumen y extracción por licitación | Pendiente |
-| 4 | Perfil de empresa + matching con IA | Pendiente |
+| 2 | Scheduling + botón manual | Hecho |
+| 3 | IA: resumen y extracción por licitación | Hecho |
+| 4 | Perfil de empresa + matching con IA | Hecho |
 | 5 | Frontend completo | Pendiente |
 | 6 | RAG (opcional, a confirmar antes de iniciar) | Pendiente |
 
@@ -43,3 +43,27 @@ Se investigó el flujo real de la ficha pública de una licitación en mercadopu
 3. Endpoints REST: listar licitaciones guardadas (paginado, filtros básicos) y detalle por `codigoExterno`.
 
 Sin IA, sin scraping de documentos (ver decisión arriba). Detalle completo del diseño en el plan de la sesión (`/home/genkah/.claude/plans/licitia-prompt-sorted-tower.md`).
+
+## Fase 3 — IA: resumen y extracción por licitación (alcance)
+
+Para cada `Licitacion` guardada, se genera con un LLM local (Ollama, `OllamaClient` en `clients/`) un resumen ejecutivo y una extracción estructurada (`puntosClave`, `palabrasClave`, `nivelComplejidad`), guardados 1:1 en `LicitacionAnalisis`. Es insumo directo para el matching contra perfil de empresa de la Fase 4, pero esta fase no compara nada contra un perfil — es análisis puro por licitación.
+
+**Misma restricción que la Fase 1**: no hay texto de documentos/anexos disponible (la descarga automática sigue descartada por reCAPTCHA Enterprise, sin resolver aún). El único input del LLM es lo que ya vive en `Licitacion`/`LicitacionItem` — `nombre`, `descripcion` (el campo de texto libre principal), organismo, monto, tipo, fechas e ítems.
+
+1. `OllamaClient.generarAnalisis()`: llama a `chat()` del paquete oficial `ollama` con `format` como JSON schema (no el literal `'json'`) y `think` configurable (`OLLAMA_THINK`, default `false`, para mitigar el bloque `<think>...</think>` que modelos como qwen3 pueden emitir). El parseo de la respuesta es defensivo (quita `<think>`/fences de Markdown antes de `JSON.parse` + validación con zod), ya que `think: false` no está garantizado en todas las combinaciones de versión de Ollama/modelo.
+2. Disparo manual únicamente, sin auto-wiring al scheduler de cron: `POST /api/licitaciones/:codigoExterno/analisis` (individual, sin restricción de estado) y `POST /api/analisis/pendientes` (batch asíncrono — 202 + polling vía `GET /api/analisis/estado` — porque las llamadas al LLM local son mucho más lentas que las de ChileCompra) + `npm run analyze` (CLI, forma síncrona primaria de correr el batch completo).
+3. El batch de "pendientes" solo cubre licitaciones activas (`estado = "Publicada"`) sin análisis vigente o con último intento `FALLIDO` — reintenta fallidos sin límite por ahora.
+
+Detalle completo del diseño en el plan de la sesión (`/home/genkah/.claude/plans/lee-plan-md-y-planifica-effervescent-manatee.md`).
+
+## Fase 4 — Perfil de empresa + matching con IA (alcance)
+
+El usuario (mono-usuario, app 100% local) declara un único perfil de empresa (`PerfilEmpresa`, tabla singleton) con qué hace y qué le interesa (rubro, palabras clave, categorías UNSPSC, regiones, rango de monto). Para cada licitación con `LicitacionAnalisis` ya `COMPLETADO`, se genera con el mismo LLM local un veredicto de "¿le conviene postular?" (`puntaje` 0-100, `recomendacion` `SI`/`NO`/`TAL_VEZ`, `justificacion`), guardado 1:1 en `LicitacionMatching` — como el perfil es singleton, no hace falta una tabla de unión.
+
+**Dependencia dura con la Fase 3**: el matching parte del `resumenEjecutivo`/`puntosClave`/`palabrasClave`/`nivelComplejidad` ya generado por el análisis, no repite esa extracción — una licitación sin análisis completado no se puede matchear (`422 ANALISIS_REQUERIDO`), y el batch de "pendientes" solo cubre activas que YA tienen análisis completado (no encadena análisis + matching automáticamente).
+
+1. Disparo manual, mismo patrón que Fase 3: `POST /api/licitaciones/:codigoExterno/matching` (individual) y `POST /api/matching/pendientes` (batch asíncrono, 202 + polling vía `GET /api/matching/estado`) + `npm run match` (CLI, forma síncrona primaria).
+2. `PerfilEmpresa` lleva un campo `version` que se incrementa en cada `PUT /api/perfil-empresa`; cada `LicitacionMatching` guarda el `perfilVersion` con el que fue calculado. Esto invalida (sin borrar) los matches calculados contra un perfil viejo — vuelven a aparecer como "pendientes" cuando el perfil cambia.
+3. `GET`/`PUT /api/perfil-empresa` para leer/crear-actualizar el perfil (404 `PERFIL_EMPRESA_NO_CONFIGURADO` si aún no existe).
+
+Detalle completo del diseño en el plan de la sesión (`/home/genkah/.claude/plans/lee-plan-md-y-planea-steady-turtle.md`).
