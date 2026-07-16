@@ -155,7 +155,12 @@ export const licitacionRepository = {
   async findByCodigoExterno(codigoExterno: string, includeRaw: boolean) {
     return prisma.licitacion.findUnique({
       where: { codigoExterno },
-      include: { items: true, analisis: true, matching: true },
+      include: {
+        items: true,
+        analisis: true,
+        matching: true,
+        documentos: { omit: { rutaAlmacenamiento: true }, orderBy: { fechaCarga: "desc" } },
+      },
       omit: includeRaw ? undefined : { rawResponse: true },
     });
   },

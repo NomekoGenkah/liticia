@@ -1,12 +1,17 @@
 import { Router } from "express";
 import { z } from "zod";
 import { licitacionRepository } from "../repositories/licitacionRepository";
+import { documentoLicitacionRepository } from "../repositories/documentoLicitacionRepository";
 import { analizarLicitacion } from "../services/analisisRunner";
 import { matchearLicitacion } from "../services/matchingRunner";
+import { DocumentosLicitacionService } from "../services/documentosLicitacionService";
 import { LicitacionQueryService, parseOrderBy } from "../services/licitacionQueryService";
 import { paginationSchema } from "../utils/pagination";
+import { UnprocessableEntityError } from "../utils/errors";
+import { uploadDocumentoMiddleware } from "./documentos.middleware";
 
 const queryService = new LicitacionQueryService(licitacionRepository);
+const documentosService = new DocumentosLicitacionService(licitacionRepository, documentoLicitacionRepository);
 
 const listQuerySchema = paginationSchema.extend({
   estado: z.string().optional(),
@@ -65,6 +70,36 @@ licitacionesRouter.post("/:codigoExterno/matching", async (req, res, next) => {
   try {
     const resultado = await matchearLicitacion(req.params.codigoExterno);
     res.json(resultado);
+  } catch (err) {
+    next(err);
+  }
+});
+
+licitacionesRouter.post("/:codigoExterno/documentos", uploadDocumentoMiddleware, async (req, res, next) => {
+  try {
+    if (!req.file) {
+      throw new UnprocessableEntityError("Debes adjuntar un archivo", "ARCHIVO_REQUERIDO");
+    }
+    const documento = await documentosService.subir(req.params.codigoExterno, req.file);
+    res.status(201).json(documento);
+  } catch (err) {
+    next(err);
+  }
+});
+
+licitacionesRouter.get("/:codigoExterno/documentos", async (req, res, next) => {
+  try {
+    const documentos = await documentosService.listar(req.params.codigoExterno);
+    res.json(documentos);
+  } catch (err) {
+    next(err);
+  }
+});
+
+licitacionesRouter.delete("/:codigoExterno/documentos/:id", async (req, res, next) => {
+  try {
+    await documentosService.eliminar(req.params.codigoExterno, req.params.id);
+    res.status(204).end();
   } catch (err) {
     next(err);
   }

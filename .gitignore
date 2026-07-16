@@ -8,6 +8,9 @@ build/
 storage/logs/*
 !storage/logs/.gitkeep
 
+storage/documentos/*
+!storage/documentos/.gitkeep
+
 *.log
 npm-debug.log*
 

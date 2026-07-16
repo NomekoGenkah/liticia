@@ -36,7 +36,7 @@ Se investigó el flujo real de la ficha pública de una licitación en mercadopu
 | 3 | IA: resumen y extracción por licitación | Hecho |
 | 4 | Perfil de empresa + matching con IA | Hecho |
 | 5 | Frontend completo | Hecho |
-| 6 | Ingesta de documentos (carga manual) | Pendiente |
+| 6 | Ingesta de documentos (carga manual) | Hecho |
 | 7 | RAG: preguntas y respuestas sobre documentos | Pendiente |
 
 ## Fase 1 — Ingesta base (alcance)
@@ -89,6 +89,8 @@ Resuelve la decisión que quedó pendiente en la Fase 1. Se descartaron dos cami
 4. Frontend: card "Documentos" en el detalle de licitación (junto a Análisis y Matching de la Fase 5) — dropzone, lista con badge de estado de extracción, botón eliminar.
 
 Esta fase entrega valor por sí sola (texto extraído de los documentos, visible aunque no haya RAG todavía) y es el insumo obligatorio de la Fase 7.
+
+Detalle completo del diseño en el plan de la sesión (`/home/genkah/.claude/plans/lee-plan-md-y-planifica-parsed-willow.md`).
 
 ## Fase 7 — RAG: preguntas y respuestas sobre documentos (alcance)
 

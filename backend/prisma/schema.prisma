@@ -45,9 +45,10 @@ model Licitacion {
   fechaDetalleObtenido DateTime?
   ultimoEstadoConocido Int?
 
-  items    LicitacionItem[]
-  analisis LicitacionAnalisis?
-  matching LicitacionMatching?
+  items      LicitacionItem[]
+  analisis   LicitacionAnalisis?
+  matching   LicitacionMatching?
+  documentos LicitacionDocumento[]
 
   @@index([codigoEstado])
   @@index([fechaCierre])
@@ -191,4 +192,30 @@ model LicitacionMatching {
 
   @@index([estado])
   @@index([recomendacion])
+}
+
+enum EstadoExtraccion {
+  PENDIENTE
+  COMPLETADO
+  FALLIDO
+}
+
+model LicitacionDocumento {
+  id           String     @id @default(uuid())
+  licitacionId String
+  licitacion   Licitacion @relation(fields: [licitacionId], references: [id], onDelete: Cascade)
+
+  nombreArchivo      String
+  mimeType           String
+  tamañoBytes        Int
+  rutaAlmacenamiento String
+
+  textoExtraido    String?          @db.Text
+  estadoExtraccion EstadoExtraccion @default(PENDIENTE)
+  detalleError     String?          @db.Text
+
+  fechaCarga DateTime @default(now())
+
+  @@index([licitacionId])
+  @@index([estadoExtraccion])
 }

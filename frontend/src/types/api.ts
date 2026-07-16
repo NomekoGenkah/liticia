@@ -4,6 +4,7 @@ export type RecomendacionMatching = "SI" | "NO" | "TAL_VEZ";
 export type MatchingEstado = "COMPLETADO" | "FALLIDO";
 export type TipoPerfil = "EMPRESA" | "PERSONA_NATURAL";
 export type IngestaEstado = "EN_PROCESO" | "COMPLETADO" | "FALLIDO";
+export type DocumentoEstadoExtraccion = "PENDIENTE" | "COMPLETADO" | "FALLIDO";
 export type IngestaDisparador = "MANUAL" | "CRON";
 
 /** Coincide con los valores que ChileCompra usa en el campo `Estado` guardado tal cual. */
@@ -111,6 +112,18 @@ export interface LicitacionMatching {
   actualizadoEn: string;
 }
 
+export interface LicitacionDocumento {
+  id: string;
+  licitacionId: string;
+  nombreArchivo: string;
+  mimeType: string;
+  tamañoBytes: number;
+  textoExtraido: string | null;
+  estadoExtraccion: DocumentoEstadoExtraccion;
+  detalleError: string | null;
+  fechaCarga: string;
+}
+
 /** Detalle GET /api/licitaciones/:codigoExterno. */
 export interface LicitacionDetalle extends Omit<LicitacionListItem, "analisis" | "matching"> {
   etapas: number | null;
@@ -123,6 +136,7 @@ export interface LicitacionDetalle extends Omit<LicitacionListItem, "analisis" |
   items: LicitacionItem[];
   analisis: LicitacionAnalisis | null;
   matching: LicitacionMatching | null;
+  documentos: LicitacionDocumento[];
   rawResponse?: unknown;
 }
 

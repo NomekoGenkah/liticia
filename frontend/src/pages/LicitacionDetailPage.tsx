@@ -4,6 +4,7 @@ import { obtenerLicitacion } from "@/api/licitaciones";
 import { EstadoBadge } from "@/components/licitaciones/EstadoBadge";
 import { AnalisisCard } from "@/components/licitacion-detail/AnalisisCard";
 import { MatchingCard } from "@/components/licitacion-detail/MatchingCard";
+import { DocumentosCard } from "@/components/licitacion-detail/DocumentosCard";
 import { ItemsTable } from "@/components/licitacion-detail/ItemsTable";
 import { RawJsonViewer } from "@/components/licitacion-detail/RawJsonViewer";
 import { Button } from "@/components/ui/button";
@@ -95,6 +96,8 @@ export function LicitacionDetailPage() {
         <AnalisisCard codigoExterno={licitacion.codigoExterno} analisis={licitacion.analisis} />
         <MatchingCard codigoExterno={licitacion.codigoExterno} matching={licitacion.matching} analisis={licitacion.analisis} />
       </div>
+
+      <DocumentosCard codigoExterno={licitacion.codigoExterno} documentos={licitacion.documentos} />
 
       <RawJsonViewer codigoExterno={licitacion.codigoExterno} />
     </div>

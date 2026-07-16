@@ -28,6 +28,7 @@ const envSchema = z.object({
   SCHEDULE_VALUE: z.string().default("0 2 * * *"),
 
   STORAGE_LOGS_DIR: z.string().default("./storage/logs"),
+  STORAGE_DOCUMENTOS_DIR: z.string().default("./storage/documentos"),
 
   PORT: z.coerce.number().int().positive().default(3000),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),

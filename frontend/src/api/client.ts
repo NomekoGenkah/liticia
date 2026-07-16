@@ -26,13 +26,7 @@ function buildQueryString(searchParams?: RequestOptions["searchParams"]): string
   return qs ? `?${qs}` : "";
 }
 
-export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const response = await fetch(`/api${path}${buildQueryString(options.searchParams)}`, {
-    method: options.method ?? "GET",
-    headers: options.body !== undefined ? { "Content-Type": "application/json" } : undefined,
-    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
-  });
-
+async function parseResponse<T>(response: Response, path: string): Promise<T> {
   if (response.status === 204) return undefined as T;
 
   const payload = await response.json().catch(() => undefined);
@@ -44,4 +38,21 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   }
 
   return payload as T;
+}
+
+export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const response = await fetch(`/api${path}${buildQueryString(options.searchParams)}`, {
+    method: options.method ?? "GET",
+    headers: options.body !== undefined ? { "Content-Type": "application/json" } : undefined,
+    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+  });
+
+  return parseResponse<T>(response, path);
+}
+
+/** Para bodies multipart (subida de archivos): no se serializa a JSON ni se setea Content-Type,
+ *  el navegador arma el boundary del multipart automáticamente al ver un body FormData. */
+export async function apiUpload<T>(path: string, formData: FormData): Promise<T> {
+  const response = await fetch(`/api${path}`, { method: "POST", body: formData });
+  return parseResponse<T>(response, path);
 }

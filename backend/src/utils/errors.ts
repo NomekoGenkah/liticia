@@ -48,6 +48,12 @@ export class UnprocessableEntityError extends AppError {
   }
 }
 
+export class PayloadTooLargeError extends AppError {
+  constructor(message: string, code: string = "PAYLOAD_TOO_LARGE") {
+    super(message, 413, code);
+  }
+}
+
 export function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunction): void {
   if (err instanceof AppError) {
     logger.warn({ err, path: req.path, code: err.code }, "Request finalizó con error controlado");
