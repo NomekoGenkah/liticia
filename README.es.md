@@ -1,3 +1,5 @@
+> [English](README.md) · **Español**
+
 # LicitIA
 
 Asistente local de licitaciones públicas chilenas. Revisar a mano los cientos que se publican cada día es inviable: LicitIA las trae desde la API de [ChileCompra](https://api.mercadopublico.cl/), las analiza con un LLM local (Ollama) y las compara contra el perfil que declares para decirte cuáles conviene revisar — todo en tu propia infraestructura, sin mandar nada a una API de IA en la nube.
@@ -124,7 +126,7 @@ cd frontend && npm install && npm run dev    # proxy /api → localhost:3000
 | `npm test` | Tests (Vitest) |
 | `npm run typecheck` | Chequeo de tipos sin emitir |
 
-**Frontend** (`frontend/`): `npm run dev`, `npm run build`, `npm run lint` (oxlint), `npm run preview`.
+**Frontend** (`frontend/`): `npm run dev`, `npm run build`, `npm run lint` (oxlint), `npm test` (Vitest), `npm run preview`.
 
 ## Variables de entorno
 
@@ -139,5 +141,14 @@ backend/     API REST + jobs (Express, Prisma, Ollama, ChileCompra)
 frontend/    Interfaz web (React, Vite, shadcn/ui)
 storage/     Logs y documentos subidos, fuera de git
 PLAN.md      Plan por fases y decisiones de arquitectura
-ROADMAP.md   Pendientes de mantenimiento (tests del front, CI, pasar el código a inglés)
+ROADMAP.md   Notas de mantenimiento (tests del front, CI, docs en inglés — hecho)
 ```
+
+## Integración continua
+
+GitHub Actions (`.github/workflows/ci.yml`) corre en cada push a `main` y en cada pull request, en dos jobs:
+
+- **backend**: `npm ci` → `prisma generate` → `npm run typecheck` → `npm test` (144 tests)
+- **frontend**: `npm ci` → `npm run build` (incluye `tsc -b`) → `npm run lint` → `npm test`
+
+No hace falta Postgres ni Ollama: los tests mockean los repositorios y el cliente de Ollama.

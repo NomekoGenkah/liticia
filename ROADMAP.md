@@ -2,16 +2,22 @@
 
 Trabajo pendiente que no agrega features: es dejar el repo mantenible y presentable. Las fases de producto están en `PLAN.md`, que es otra cosa y va aparte.
 
+> **Estado (2026-07-17): los cuatro puntos están hechos.**
+> 1. Tests del frontend — Vitest + Testing Library, 37 tests (`format`, `estimarRestante`, `leerFiltros`, el reductor `aplicar` de SSE, y los componentes `LicitacionesTable` y `PendientesPreview`).
+> 2. CI — `.github/workflows/ci.yml`, dos jobs (backend y frontend) como se describe abajo.
+> 3. Documentación a inglés — `README.md` (inglés) + `README.es.md` (español) enlazados, y `PLAN.md` en inglés con la decisión del idioma del código registrada ahí.
+> 4. Verbos técnicos — **parcial a propósito**: `arrancar→start` y `cerrar→close` (+ `cerrarItem→closeItem`) hechos. `planificar→plan` y `correr→run` se dejaron sin tocar: chocan con los sustantivos del dominio `PlanProceso`/`ProcesoRun` (`plan`, `run`) y renombrarlos deja `this.run(run.id, plan)`, que es menos legible, no más. `cerrarHuerfanos`/`cerrarHuerfanas` también se dejaron (fuera del set acordado).
+
 ## Orden
 
 | # | Qué | Esfuerzo | Por qué en este orden |
 |---|---|---|---|
 | 1 | Tests del frontend | M | Sin esto, el CI del paso 2 solo puede correr typecheck y build |
-| 2 | CI | S | Tiene que estar **antes** del paso 3, no después — ver abajo |
-| 3 | Código a inglés | **L** | Es el refactor más grande del repo; conviene hacerlo con el CI ya gateando |
-| 4 | README bilingüe | S | Al final: describe el repo ya en inglés |
+| 2 | CI | S | Conviene tenerlo antes de cualquier refactor grande — ver abajo |
+| 3 | Documentación a inglés | M | El punto que de verdad abre el repo a quien no lee español |
+| 4 | Emparejar los verbos técnicos | S | Opcional. Cosmético y acotado |
 
-> **Nota sobre el orden del CI.** La idea original era dejarlo para el final. La recomendación es adelantarlo al segundo lugar, porque su valor es máximo justo durante el paso 3: un refactor mecánico que toca 147 archivos es exactamente el momento en que querés un gate verde en cada commit. Hacer el refactor más riesgoso del proyecto sin CI, y recién después agregarlo, usa la herramienta cuando ya no hace falta. Además el paso 1 existe en parte para darle al CI algo que correr.
+> **Nota sobre el orden del CI.** La idea original era dejarlo para el final. La recomendación es adelantarlo: su valor es máximo *antes* de tocar mucho código, no después, y el paso 1 existe en parte para darle algo que correr.
 >
 > Evidencia de que hace falta: el build del frontend estuvo roto en `main` desde el commit de la Fase 7 y nadie se enteró hasta la Fase 8.
 
@@ -46,59 +52,41 @@ frontend:  npm ci → npm run build (ya incluye tsc -b) → npm run lint → npm
 - No hace falta Postgres: los 144 tests mockean los repositorios. Si algún día hay tests de integración, ahí sí un servicio `postgres` en el job.
 - Ollama no existe en CI y no debe: los tests del `OllamaClient` mockean el paquete.
 
-## 3. Código a inglés
+## 3. Documentación a inglés
 
-**El grande.** 147 archivos, ~12.000 líneas. Hoy identificadores, comentarios, códigos de error y modelos de datos están en español.
+El objetivo real es que alguien que no lee español pueda evaluar el repo. Eso se consigue con la prosa, no con los identificadores: nadie va a leer `procesoRunner.ts` línea por línea, pero sí el README y —si le interesa— el registro de decisiones.
 
-### Lo que NO se traduce
+- **`README.md` en inglés**, con **`README.es.md`** en español enlazado desde la primera línea de cada uno (convención habitual en GitHub: `README.<lang>.md`). Bilingüe porque es la puerta de entrada, es corto (~1.280 palabras tras la compresión) y es estable.
+- **`PLAN.md` en inglés, sin copia en español.** Es el mejor activo del repo — el porqué del prefiltro UNSPSC con sus números, la decisión de no evadir el reCAPTCHA, por qué `INTERRUMPIDO` no es `FALLIDO` — y hoy es ilegible para media audiencia. Va en un solo idioma y no bilingüe porque crece con cada fase: dos copias de un documento vivo se desincronizan en el primer commit, mientras que el README no.
+- **Registrar en `PLAN.md`** la decisión de abajo (el código se queda en español), junto al resto de las decisiones de arquitectura. Una decisión documentada sobre el idioma del dominio vale más que 147 archivos renombrados.
 
-Esto primero, porque confundirlo rompe el producto:
+## 4. Emparejar los verbos técnicos
 
-- **Los prompts al LLM.** `analisisPrompt.ts` / `matchingPrompt.ts` están en español a propósito y el system prompt dice literalmente *"Todo el texto de salida debe estar en español"*. Las licitaciones son chilenas y el usuario lee español.
-- **Las cadenas de la UI.** Mismo motivo: los usuarios son chilenos.
-- **`rawResponse`.** Es el JSON crudo de ChileCompra, con sus claves en español (`CodigoExterno`, `FechaCierre`). No es nuestro.
-- **`PLAN.md`.** Decidir aparte. Es el registro de decisiones y es prosa larga; traducirlo es un proyecto en sí. Si el objetivo es que se lea desde afuera, va después del paso 4.
+Opcional y cosmético, pero barato. El repo ya usa —sin que nadie lo diseñara— inglés para el vocabulario técnico y español para el del dominio: `buildAnalisisPrompt`, `findByCodigoExterno`, `chunkText`, `ensureDocumentosDir`, `errorHandler`, `buildPaginationMeta`. La regla implícita es **verbos y conceptos técnicos en inglés, sustantivos del dominio en español**, y se cumple en la mayor parte del código.
 
-### Los tres riesgos reales
+Donde no se cumple, emparejarlo: `ProcesoRunner.planificar()` → `plan()`, `arrancar()` → `start()`, `correr()` → `run()`, `cerrar()` → `close()`. Nada de esto toca el dominio (`licitacion`, `codigoExterno`, `segmentos`, `perfil` se quedan) ni la base de datos.
 
-1. **Renombrar modelos de Prisma puede borrar datos.** `prisma migrate dev` frecuentemente genera `DROP COLUMN` + `ADD COLUMN` en vez de `ALTER TABLE ... RENAME`, y eso destruye la columna en silencio. Hay 9 tablas con nombre en español (`Licitacion`, `LicitacionAnalisis`, `IngestaRun`…). **La migración del rename se revisa a mano, línea por línea, antes de aplicarla.** Todo el README del repo existe en parte para no perder `pgdata`; este es el único paso del roadmap que puede lograrlo.
-   - Escape hatch si se quiere separar el riesgo: renombrar los modelos en el schema pero dejar `@@map("Licitacion")` para conservar el nombre de tabla. El código queda en inglés con cero riesgo de datos, a cambio de que la base siga en español. Es deuda, pero deuda acotada y visible.
-2. **Los 600 comentarios del backend son el mejor activo del repo.** Explican *por qué*, no *qué* — por qué el `fetch` compone signals en vez de pisarlos, por qué el prefiltro va por segmento y no por código exacto, por qué `INTERRUMPIDO` no es `FALLIDO`. **Hay que reescribirlos en inglés, no traducirlos.** Un comentario bueno mal traducido es peor que un comentario bueno en español. Esto es el grueso del trabajo y no es mecánico.
-3. **Los códigos de error son un contrato entre backend y frontend.** `PERFIL_EMPRESA_REQUERIDO`, `ANALISIS_REQUERIDO`, `PROCESO_EN_PROCESO` y compañía viajan como strings y el frontend los matchea literal (los mapas `ERRORES`). No hay consumidores externos, así que se pueden renombrar — pero **los dos lados en el mismo commit**.
+No es urgente. Si nunca se hace, el repo sigue siendo coherente.
 
-### Cómo partirlo
-
-En tajadas que compilen y pasen los tests cada una. Nunca de una.
-
-1. **Códigos de error + enums** (back y front juntos). Contrato chico y aislado.
-2. **Backend por capa**, de adentro hacia afuera: `utils` → `clients` → `repositories` → `services` → `routes`. Cada una es puro TypeScript, o sea que el compilador verifica el rename entero. Cero riesgo de datos.
-3. **Frontend**: `types` → `api` → `hooks` → `components` → `pages`.
-4. **Prisma al final, en su propio commit.** Es lo único que toca datos; aislarlo hace que un `git revert` sea suficiente si algo sale mal.
-
-### Glosario a fijar antes de empezar
-
-Decidirlo una vez y escribirlo acá evita que el repo termine con tres traducciones del mismo concepto:
-
-| Español | Inglés | Nota |
-|---|---|---|
-| Licitación | `Tender` | El término estándar en compras públicas |
-| Organismo | `Agency` / `BuyerAgency` | El comprador estatal |
-| Perfil de empresa | `CompanyProfile` | |
-| Matching | `Matching` | Ya está en inglés |
-| Puntaje / Recomendación | `Score` / `Recommendation` | |
-| Proceso / Corrida | `Process` / `Run` | `ProcesoRun` → `ProcessRun` |
-| Pendientes | `Pending` | |
-| UNSPSC | `UNSPSC` | Estándar internacional, no se toca |
-
-## 4. README bilingüe
-
-- `README.md` en inglés (es lo que GitHub muestra por defecto).
-- `README.es.md` en español, enlazado desde la primera línea del inglés y viceversa.
-- Convención habitual en GitHub: `README.<lang>.md`.
-
-El costo honesto: pasan a ser dos archivos que se desincronizan. Se mitiga porque el README ya se comprimió a ~1.280 palabras y porque la mayor parte (comandos, tablas de scripts) es idéntica en los dos idiomas.
+> **Hecho en parte** (ver el estado al inicio): `start`/`close`/`closeItem` sí; `plan`/`run` no, porque colisionan con los sustantivos `PlanProceso`/`ProcesoRun`.
 
 ---
+
+## Decisión: el código se queda en español
+
+Se evaluó traducir todo el código a inglés y **se descartó**. El motivo no es el costo (147 archivos, 600 comentarios que habría que reescribir), sino que el resultado sería peor:
+
+1. **Rompería una costura que hoy no existe.** `codigoExterno` es una sola palabra desde la API de ChileCompra (`CodigoExterno`) → el cliente → la base → la UI. Un `grep` la encuentra de punta a punta. Traducirla mete un mapeo permanente y corta el grep en la frontera. Peor: `rawResponse` es el jsonb crudo de ChileCompra y conserva las claves en español para siempre, así que quedaría un `tender.rawResponse.CodigoExterno` — incoherente de una forma que el código de hoy no lo es.
+2. **Perdería precisión.** "Licitación" no es sinónimo de *tender*: es un instrumento legal específico del Estado de Chile, con su reglamento y sus etapas. Es el principio de *ubiquitous language*: el código habla el idioma de los expertos del dominio, y acá los expertos hablan español.
+3. **El beneficio se consigue más barato.** Lo que se quería resolver era que el repo fuera evaluable desde afuera; eso lo cubre el paso 3 con el ~5% del esfuerzo.
+
+Se revisaría esta decisión si aparecieran contribuidores que no hablan español, o si el motor de matching se separara del dominio de ChileCompra (ver la evaluación de extenderlo a bolsas de trabajo, que no cambia nada: Computrabajo y el mercado objetivo también son hispanohablantes).
+
+**Lo que igual no se traduce nunca**, por si la decisión se revierte algún día:
+
+- **Los prompts al LLM.** El system prompt dice literalmente *"Todo el texto de salida debe estar en español"*, y las licitaciones son chilenas.
+- **Las cadenas de la UI.** Los usuarios son chilenos.
+- **`rawResponse`.** No es nuestro.
 
 ## Fuera de alcance
 
@@ -106,4 +94,3 @@ Anotado para que se note que es decisión y no olvido:
 
 - **Auth, multi-usuario, deploy.** La app es mono-usuario y local a propósito; el lock en memoria y el barrido de huérfanos del arranque asumen una sola instancia, y está documentado en `PLAN.md`.
 - **E2E en CI.** Ver el paso 1.
-- **Traducir `PLAN.md`.** Ver el paso 3.
