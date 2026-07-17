@@ -104,6 +104,8 @@ function aplicar(qc: QueryClient, evento: ProcesoEvento): void {
       qc.invalidateQueries({ queryKey: ["licitaciones"] });
       qc.invalidateQueries({ queryKey: ["proceso-runs"] });
       qc.invalidateQueries({ queryKey: ["estadisticas-panel"] });
+      // El conteo del botón "todas" quedó viejo: lo que se acaba de procesar ya no está pendiente.
+      qc.invalidateQueries({ queryKey: ["proceso-pendientes"] });
       avisarFin(evento);
       return;
   }
