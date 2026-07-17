@@ -30,7 +30,8 @@ function avisarFin(evento: Extract<ProcesoEvento, { evento: "run-finalizado" }>)
   else toast.error(`${nombre} terminó con estado ${evento.estado}: ${evento.detalleError ?? detalle}`);
 }
 
-function aplicar(qc: QueryClient, evento: ProcesoEvento): void {
+/** Exportada para test: es el reductor que traduce cada evento SSE al caché de queries. */
+export function aplicar(qc: QueryClient, evento: ProcesoEvento): void {
   const keyEstado = keyEstadoProceso(evento.tipo);
   const keyStream = keyStreamProceso(evento.tipo);
 

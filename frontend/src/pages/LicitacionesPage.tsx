@@ -7,23 +7,9 @@ import { LicitacionesTable } from "@/components/licitaciones/LicitacionesTable";
 import { SeleccionBar } from "@/components/licitaciones/SeleccionBar";
 import { SimplePager } from "@/components/licitaciones/SimplePager";
 import { Skeleton } from "@/components/ui/skeleton";
+import { leerFiltros, ORDEN_POR_DEFECTO } from "@/lib/licitacionesFiltros";
 
 const PAGE_SIZE = 20;
-const ORDEN_POR_DEFECTO = "fechaPublicacion:desc";
-
-/** Las recomendaciones válidas: la URL la escribe cualquiera y puede traer cualquier cosa. */
-const RECOMENDACIONES = ["SI", "NO", "TAL_VEZ"] as const;
-
-function leerFiltros(params: URLSearchParams): LicitacionesFiltrosState {
-  const recomendacion = params.get("recomendacion");
-
-  return {
-    estado: params.get("estado") ?? undefined,
-    codigoOrganismo: params.get("codigoOrganismo") ?? undefined,
-    recomendacion: RECOMENDACIONES.find((r) => r === recomendacion),
-    orderBy: params.get("orderBy") ?? ORDEN_POR_DEFECTO,
-  };
-}
 
 export function LicitacionesPage() {
   /**
