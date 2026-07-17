@@ -21,6 +21,17 @@ function DialogClose({ ...props }: DialogPrimitive.Close.Props) {
   return <DialogPrimitive.Close data-slot="dialog-close" {...props} />
 }
 
+/**
+ * Scrim sólido, sin `backdrop-blur`.
+ *
+ * El blur venía de fábrica con el estilo base-nova y cuesta carísimo: es un filtro sobre todo el
+ * viewport, así que el compositor tiene que re-rasterizarlo entero en cada frame que algo repinte
+ * detrás. Medido acá sin GPU (que es el caso de WSL2, y de cualquiera sin aceleración): abrir el
+ * modal tiraba los frames presentados de 59 a 19; sacando solo el filtro, vuelve a 60.
+ *
+ * La opacidad sube de /10 a /50 para compensar: el blur era lo que separaba el diálogo del fondo,
+ * y un velo al 10% sin desenfoque no alcanza.
+ */
 function DialogOverlay({
   className,
   ...props
@@ -29,7 +40,7 @@ function DialogOverlay({
     <DialogPrimitive.Backdrop
       data-slot="dialog-overlay"
       className={cn(
-        "fixed inset-0 isolate z-50 bg-black/10 duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+        "fixed inset-0 isolate z-50 bg-black/50 duration-100 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
         className
       )}
       {...props}

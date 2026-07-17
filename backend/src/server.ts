@@ -3,27 +3,38 @@ import { config } from "./config/env";
 import { logger } from "./config/logger";
 import { prisma } from "./config/prisma";
 import { iniciarScheduler } from "./jobs/scheduler";
+import { ingestaRunRepository } from "./repositories/ingestaRunRepository";
 import { procesoRunRepository } from "./repositories/procesoRunRepository";
 
 /**
- * Un run EN_PROCESO en la base cuando el servidor recién arranca solo puede significar que el
+ * Una corrida EN_PROCESO en la base cuando el servidor recién arranca solo puede significar que el
  * proceso anterior murió a mitad: el estado vivo era memoria y se fue con él. Se cierran como
  * INTERRUMPIDO (distinto de FALLIDO: nadie falló, se cayó el backend) para que el historial diga
  * la verdad y el lock en base no quede tomado para siempre.
  *
+ * Cubre tanto los procesos de IA como la ingesta, que tienen tablas distintas pero el mismo
+ * problema.
+ *
  * Asume una sola instancia de backend, que es lo que esta app es. Con dos, el arranque de una
- * mataría el run vivo de la otra. Por eso mismo esto va acá y no en los jobs del CLI.
+ * mataría la corrida viva de la otra. Por eso mismo esto va acá y no en los jobs del CLI.
  */
 async function limpiarRunsHuerfanos() {
   try {
-    const huerfanos = await procesoRunRepository.cerrarHuerfanos();
-    if (huerfanos > 0) {
-      logger.warn({ huerfanos }, "Runs marcados INTERRUMPIDO: el backend se reinició mientras corrían");
+    const [procesos, ingestas] = await Promise.all([
+      procesoRunRepository.cerrarHuerfanos(),
+      ingestaRunRepository.cerrarHuerfanas(),
+    ]);
+
+    if (procesos > 0 || ingestas > 0) {
+      logger.warn(
+        { procesos, ingestas },
+        "Corridas marcadas INTERRUMPIDO: el backend se reinició mientras corrían"
+      );
     }
   } catch (err) {
-    // No es fatal: el servidor tiene que levantar igual. A lo sumo un run viejo se ve EN_PROCESO
-    // en el historial y bloquea el lock hasta el próximo arranque.
-    logger.error({ err }, "No se pudieron limpiar los runs huérfanos");
+    // No es fatal: el servidor tiene que levantar igual. A lo sumo una corrida vieja se ve
+    // EN_PROCESO en el historial y bloquea el lock hasta el próximo arranque.
+    logger.error({ err }, "No se pudieron limpiar las corridas huérfanas");
   }
 }
 

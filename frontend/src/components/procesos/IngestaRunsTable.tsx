@@ -7,10 +7,11 @@ import { SimplePager } from "@/components/licitaciones/SimplePager";
 import { formatDuracion, formatFechaHora } from "@/lib/format";
 import type { IngestaEstado, IngestaRun } from "@/types/api";
 
-const VARIANTE: Record<IngestaEstado, "default" | "secondary" | "destructive"> = {
+const VARIANTE: Record<IngestaEstado, "default" | "secondary" | "destructive" | "outline"> = {
   COMPLETADO: "default",
   EN_PROCESO: "secondary",
   FALLIDO: "destructive",
+  INTERRUMPIDO: "outline",
 };
 
 const INGESTAS = { singular: "ingesta", plural: "ingestas" };

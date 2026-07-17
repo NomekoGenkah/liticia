@@ -3,7 +3,7 @@ export type AnalisisEstado = "COMPLETADO" | "FALLIDO";
 export type RecomendacionMatching = "SI" | "NO" | "TAL_VEZ";
 export type MatchingEstado = "COMPLETADO" | "FALLIDO";
 export type TipoPerfil = "EMPRESA" | "PERSONA_NATURAL";
-export type IngestaEstado = "EN_PROCESO" | "COMPLETADO" | "FALLIDO";
+export type IngestaEstado = "EN_PROCESO" | "COMPLETADO" | "FALLIDO" | "INTERRUMPIDO";
 export type DocumentoEstadoExtraccion = "PENDIENTE" | "COMPLETADO" | "FALLIDO";
 export type IngestaDisparador = "MANUAL" | "CRON";
 

@@ -83,6 +83,9 @@ enum IngestaEstado {
   EN_PROCESO
   COMPLETADO
   FALLIDO
+  /// El backend se reinició mientras corría. Distinto de FALLIDO: nadie falló. Igual que en
+  /// ProcesoRunEstado — ver el barrido de huérfanos en server.ts.
+  INTERRUMPIDO
 }
 
 enum IngestaDisparador {

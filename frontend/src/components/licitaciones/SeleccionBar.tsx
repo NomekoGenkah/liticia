@@ -49,7 +49,10 @@ export function SeleccionBar({ seleccion, onLimpiar }: Props) {
   const ocupado = ejecutar.isPending;
 
   return (
-    <div className="sticky bottom-4 z-10 mx-auto flex w-fit items-center gap-3 rounded-full border bg-background/95 px-4 py-2 shadow-lg backdrop-blur">
+    // Sin backdrop-blur (ver el comentario de ui/dialog.tsx): la barra flota sobre una tabla que
+    // scrollea, así que el filtro se re-rasterizaría en cada frame del scroll. A 95% de opacidad
+    // tampoco se notaba.
+    <div className="sticky bottom-4 z-10 mx-auto flex w-fit items-center gap-3 rounded-full border bg-background/95 px-4 py-2 shadow-lg">
       <span className="text-sm font-medium tabular-nums">
         {seleccion.size} seleccionada{seleccion.size === 1 ? "" : "s"}
       </span>

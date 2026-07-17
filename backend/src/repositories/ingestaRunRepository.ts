@@ -24,6 +24,23 @@ export const ingestaRunRepository = {
     });
   },
 
+  /**
+   * Cierra las ingestas que quedaron EN_PROCESO porque el backend murió a mitad.
+   *
+   * Mismo razonamiento que procesoRunRepository.cerrarHuerfanos(): asume una sola instancia, y por
+   * eso lo llama solo el arranque del servidor. Sin esto, un corte deja una fila EN_PROCESO para
+   * siempre en el historial (y el lock en memoria, que sí se limpia solo al reiniciar, decía otra
+   * cosa que la base).
+   */
+  async cerrarHuerfanas(): Promise<number> {
+    const { count } = await prisma.ingestaRun.updateMany({
+      where: { estado: "EN_PROCESO" },
+      data: { estado: "INTERRUMPIDO", fechaFin: new Date() },
+    });
+
+    return count;
+  },
+
   async listar(pagination: Pagination) {
     const { skip, take } = toSkipTake(pagination);
     const [runs, total] = await Promise.all([

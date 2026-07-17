@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { listarLicitaciones, type ListarLicitacionesParams } from "@/api/licitaciones";
 import { LicitacionesFilters, type LicitacionesFiltrosState } from "@/components/licitaciones/LicitacionesFilters";
@@ -8,16 +9,39 @@ import { SimplePager } from "@/components/licitaciones/SimplePager";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const PAGE_SIZE = 20;
+const ORDEN_POR_DEFECTO = "fechaPublicacion:desc";
+
+/** Las recomendaciones válidas: la URL la escribe cualquiera y puede traer cualquier cosa. */
+const RECOMENDACIONES = ["SI", "NO", "TAL_VEZ"] as const;
+
+function leerFiltros(params: URLSearchParams): LicitacionesFiltrosState {
+  const recomendacion = params.get("recomendacion");
+
+  return {
+    estado: params.get("estado") ?? undefined,
+    codigoOrganismo: params.get("codigoOrganismo") ?? undefined,
+    recomendacion: RECOMENDACIONES.find((r) => r === recomendacion),
+    orderBy: params.get("orderBy") ?? ORDEN_POR_DEFECTO,
+  };
+}
 
 export function LicitacionesPage() {
-  const [page, setPage] = useState(1);
-  const [filtros, setFiltros] = useState<LicitacionesFiltrosState>({ orderBy: "fechaPublicacion:desc" });
+  /**
+   * Los filtros viven en la URL, no en estado local.
+   *
+   * No es un lujo: el panel de inicio linkea a `/licitaciones?orderBy=fechaCierre:asc` ("las que
+   * cierran primero"), y con los filtros en useState ese link no hacía nada. De paso, el botón
+   * "atrás" y compartir una búsqueda pasan a funcionar.
+   */
+  const [searchParams, setSearchParams] = useSearchParams();
+  const filtros = leerFiltros(searchParams);
+  const page = Number(searchParams.get("page")) || 1;
 
   /**
-   * Ids, no codigoExterno: es lo que espera el endpoint de procesos.
+   * La selección sí es estado local: es efímera, puede tener cientos de ids y no tiene sentido
+   * compartirla por link ni dejarla en el historial del navegador.
    *
-   * En estado local y no en la URL: es efímera, puede tener cientos de ids, y los filtros de esta
-   * página tampoco están en la URL — poner solo la selección sería incoherente.
+   * Son ids y no codigoExterno porque es lo que espera el endpoint de procesos.
    */
   const [seleccion, setSeleccion] = useState<Set<string>>(new Set());
 
@@ -52,16 +76,35 @@ export function LicitacionesPage() {
 
   const limpiar = useCallback(() => setSeleccion(new Set()), []);
 
-  function handleApply(nuevos: ListarLicitacionesParams) {
-    setFiltros(nuevos as LicitacionesFiltrosState);
-    setPage(1);
+  /** Escribe en la URL solo lo que no es el default: `?page=1&orderBy=<el de siempre>` es ruido. */
+  function escribirUrl(filtros: LicitacionesFiltrosState, pagina: number) {
+    const nuevos = new URLSearchParams();
+
+    if (filtros.estado) nuevos.set("estado", filtros.estado);
+    if (filtros.codigoOrganismo) nuevos.set("codigoOrganismo", filtros.codigoOrganismo);
+    if (filtros.recomendacion) nuevos.set("recomendacion", filtros.recomendacion);
+    if (filtros.orderBy !== ORDEN_POR_DEFECTO) nuevos.set("orderBy", filtros.orderBy);
+    if (pagina > 1) nuevos.set("page", String(pagina));
+
+    setSearchParams(nuevos);
   }
+
+  function handleApply(nuevos: ListarLicitacionesParams) {
+    // Cambiar el filtro vuelve a la página 1: quedarse en la 3 de un resultado que ahora tiene una
+    // sola página deja la tabla vacía sin explicación.
+    escribirUrl(nuevos as LicitacionesFiltrosState, 1);
+  }
+
+  const irAPagina = (pagina: number) => escribirUrl(filtros, pagina);
 
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-2xl font-semibold">Licitaciones</h1>
 
-      <LicitacionesFilters value={filtros} onApply={handleApply} />
+      {/* El key remonta el formulario cuando la URL cambia por fuera (botón "atrás", o el link del
+          panel): su estado interno arranca de `value` y no lo vuelve a mirar, así que sin esto
+          mostraría los filtros viejos mientras la tabla ya muestra los nuevos. */}
+      <LicitacionesFilters key={searchParams.toString()} value={filtros} onApply={handleApply} />
 
       {isLoading && (
         <div className="flex flex-col gap-2">
@@ -85,7 +128,7 @@ export function LicitacionesPage() {
             onToggle={alternar}
             onToggleTodas={alternarTodas}
           />
-          <SimplePager pagination={data.pagination} onPageChange={setPage} />
+          <SimplePager pagination={data.pagination} onPageChange={irAPagina} />
           <SeleccionBar seleccion={seleccion} onLimpiar={limpiar} />
         </>
       )}
