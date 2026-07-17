@@ -8,9 +8,16 @@ vi.mock("../config/env", () => ({
 
 import type { OllamaClient } from "../clients/ollamaClient";
 import type { ChunkInsertInput, documentoChunkRepository } from "../repositories/documentoChunkRepository";
+import { ProcesoCanceladoError } from "../utils/errors";
 import { EmbeddingDocumentosService } from "./embeddingDocumentosService";
 
 const vector = () => Array.from({ length: 768 }, () => 0.1);
+
+const opcionesItem = (signal: AbortSignal = new AbortController().signal) => ({
+  signal,
+  onToken: vi.fn(),
+  onReintento: vi.fn(),
+});
 
 function documento(overrides: Partial<{ id: string; textoExtraido: string }> = {}) {
   return {
@@ -23,31 +30,32 @@ function documento(overrides: Partial<{ id: string; textoExtraido: string }> = {
   };
 }
 
-function crearMocks(pendientes: ReturnType<typeof documento>[]) {
+function crearMocks(pendientes: ReturnType<typeof documento>[] = []) {
   const generarEmbedding = vi.fn(async (textos: string[]) => textos.map(() => vector()));
   const reemplazarChunksDeDocumento = vi.fn(async (_documentoId: string, _chunks: ChunkInsertInput[]) => []);
 
   const ollamaClient = { generarEmbedding } as unknown as OllamaClient;
   const chunkRepo = {
     listarDocumentosPendientes: vi.fn(async () => pendientes),
+    listarDocumentosPorIds: vi.fn(async () => pendientes),
     reemplazarChunksDeDocumento,
   } as unknown as typeof documentoChunkRepository;
 
-  return { ollamaClient, chunkRepo, generarEmbedding, reemplazarChunksDeDocumento };
+  const service = new EmbeddingDocumentosService(ollamaClient, chunkRepo);
+
+  return { service, ollamaClient, chunkRepo, generarEmbedding, reemplazarChunksDeDocumento };
 }
 
-describe("EmbeddingDocumentosService.embeberPendientes", () => {
+describe("EmbeddingDocumentosService.procesar", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("persiste chunks con índice correlativo y la licitación del documento", async () => {
     const texto = Array.from({ length: 20 }, (_, i) => `Cláusula ${i} con bastante relleno.`).join("\n\n");
-    const { ollamaClient, chunkRepo, reemplazarChunksDeDocumento } = crearMocks([
-      documento({ textoExtraido: texto }),
-    ]);
+    const { service, reemplazarChunksDeDocumento } = crearMocks();
 
-    const resumen = await new EmbeddingDocumentosService(ollamaClient, chunkRepo).embeberPendientes();
+    const resultado = await service.procesar(documento({ textoExtraido: texto }), undefined, opcionesItem());
 
-    expect(resumen).toEqual({ totalEncontrados: 1, totalCompletados: 1, totalFallidos: 0, totalOmitidos: 0 });
+    expect(resultado).toBe("COMPLETADO");
 
     const [documentoId, chunks] = reemplazarChunksDeDocumento.mock.calls[0]!;
     expect(documentoId).toBe("doc-1");
@@ -57,11 +65,9 @@ describe("EmbeddingDocumentosService.embeberPendientes", () => {
   });
 
   it("embebe con el prefijo search_document pero persiste el contenido limpio", async () => {
-    const { ollamaClient, chunkRepo, generarEmbedding, reemplazarChunksDeDocumento } = crearMocks([
-      documento({ textoExtraido: "Plazo de entrega: 30 días." }),
-    ]);
+    const { service, generarEmbedding, reemplazarChunksDeDocumento } = crearMocks();
 
-    await new EmbeddingDocumentosService(ollamaClient, chunkRepo).embeberPendientes();
+    await service.procesar(documento({ textoExtraido: "Plazo de entrega: 30 días." }), undefined, opcionesItem());
 
     expect(generarEmbedding).toHaveBeenCalledWith(["search_document: Plazo de entrega: 30 días."]);
 
@@ -70,13 +76,10 @@ describe("EmbeddingDocumentosService.embeberPendientes", () => {
   });
 
   it("parte el trabajo en sub-lotes del tamaño configurado", async () => {
-    // 40 párrafos largos => varios chunks => más de un lote de 16.
     const texto = Array.from({ length: 120 }, (_, i) => `Párrafo ${i}. ${"relleno ".repeat(60)}`).join("\n\n");
-    const { ollamaClient, chunkRepo, generarEmbedding, reemplazarChunksDeDocumento } = crearMocks([
-      documento({ textoExtraido: texto }),
-    ]);
+    const { service, generarEmbedding, reemplazarChunksDeDocumento } = crearMocks();
 
-    await new EmbeddingDocumentosService(ollamaClient, chunkRepo).embeberPendientes();
+    await service.procesar(documento({ textoExtraido: texto }), undefined, opcionesItem());
 
     const [, chunks] = reemplazarChunksDeDocumento.mock.calls[0]!;
     expect(generarEmbedding).toHaveBeenCalledTimes(Math.ceil(chunks.length / 16));
@@ -87,38 +90,65 @@ describe("EmbeddingDocumentosService.embeberPendientes", () => {
 
   it("omite documentos sin texto aprovechable sin llamar al modelo", async () => {
     // El PDF escaneado: COMPLETADO pero con texto vacío.
-    const { ollamaClient, chunkRepo, generarEmbedding, reemplazarChunksDeDocumento } = crearMocks([
-      documento({ textoExtraido: "   \n  " }),
-    ]);
+    const { service, generarEmbedding, reemplazarChunksDeDocumento } = crearMocks();
 
-    const resumen = await new EmbeddingDocumentosService(ollamaClient, chunkRepo).embeberPendientes();
+    const resultado = await service.procesar(documento({ textoExtraido: "   \n  " }), undefined, opcionesItem());
 
-    expect(resumen).toEqual({ totalEncontrados: 1, totalCompletados: 0, totalFallidos: 0, totalOmitidos: 1 });
+    expect(resultado).toBe("OMITIDO");
     expect(generarEmbedding).not.toHaveBeenCalled();
     expect(reemplazarChunksDeDocumento).not.toHaveBeenCalled();
   });
 
-  it("sigue con el resto del batch cuando un documento falla", async () => {
-    const { ollamaClient, chunkRepo, generarEmbedding, reemplazarChunksDeDocumento } = crearMocks([
-      documento({ id: "doc-1" }),
-      documento({ id: "doc-2" }),
-      documento({ id: "doc-3" }),
-    ]);
+  it("corta entre sub-lotes si el usuario canceló, sin persistir nada", async () => {
+    // generarEmbedding no acepta signal (la lib no lo soporta para /api/embed): el corte entre
+    // lotes es el único punto de cancelación que tiene un documento.
+    const texto = Array.from({ length: 120 }, (_, i) => `Párrafo ${i}. ${"relleno ".repeat(60)}`).join("\n\n");
+    const controller = new AbortController();
+    const { service, generarEmbedding, reemplazarChunksDeDocumento } = crearMocks();
 
-    generarEmbedding.mockRejectedValueOnce(new Error("Ollama caído"));
+    generarEmbedding.mockImplementationOnce(async (textos: string[]) => {
+      controller.abort();
+      return textos.map(() => vector());
+    });
 
-    const resumen = await new EmbeddingDocumentosService(ollamaClient, chunkRepo).embeberPendientes();
+    await expect(
+      service.procesar(documento({ textoExtraido: texto }), undefined, opcionesItem(controller.signal))
+    ).rejects.toBeInstanceOf(ProcesoCanceladoError);
 
-    expect(resumen).toEqual({ totalEncontrados: 3, totalCompletados: 2, totalFallidos: 1, totalOmitidos: 0 });
-    expect(reemplazarChunksDeDocumento).toHaveBeenCalledTimes(2);
+    expect(generarEmbedding).toHaveBeenCalledTimes(1);
+    expect(reemplazarChunksDeDocumento).not.toHaveBeenCalled();
+  });
+});
+
+describe("EmbeddingDocumentosService.planificar", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("modo PENDIENTES pide los documentos con texto y sin chunks", async () => {
+    const { service, chunkRepo } = crearMocks([documento()]);
+
+    const plan = await service.planificar({ modo: "PENDIENTES" });
+
+    expect(chunkRepo.listarDocumentosPendientes).toHaveBeenCalled();
+    expect(plan.items).toHaveLength(1);
+    expect(plan.parametros).toEqual({ modo: "PENDIENTES" });
   });
 
-  it("no hace nada si no hay documentos pendientes", async () => {
-    const { ollamaClient, chunkRepo, generarEmbedding } = crearMocks([]);
+  it("modo IDS pide los documentos puntuales, sin el predicado de pendiente", async () => {
+    const { service, chunkRepo } = crearMocks([documento()]);
 
-    const resumen = await new EmbeddingDocumentosService(ollamaClient, chunkRepo).embeberPendientes();
+    const plan = await service.planificar({ modo: "IDS", ids: ["doc-1"] });
 
-    expect(resumen.totalEncontrados).toBe(0);
+    expect(chunkRepo.listarDocumentosPorIds).toHaveBeenCalledWith(["doc-1"]);
+    expect(chunkRepo.listarDocumentosPendientes).not.toHaveBeenCalled();
+    expect(plan.parametros).toEqual({ modo: "IDS", ids: ["doc-1"] });
+  });
+
+  it("no encuentra nada si no hay documentos pendientes", async () => {
+    const { service, generarEmbedding } = crearMocks([]);
+
+    const plan = await service.planificar({ modo: "PENDIENTES" });
+
+    expect(plan.items).toHaveLength(0);
     expect(generarEmbedding).not.toHaveBeenCalled();
   });
 });

@@ -100,8 +100,17 @@ export function LicitacionDetailPage() {
       </Card>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <AnalisisCard codigoExterno={licitacion.codigoExterno} analisis={licitacion.analisis} />
-        <MatchingCard codigoExterno={licitacion.codigoExterno} matching={licitacion.matching} analisis={licitacion.analisis} />
+        <AnalisisCard
+          licitacionId={licitacion.id}
+          codigoExterno={licitacion.codigoExterno}
+          analisis={licitacion.analisis}
+        />
+        <MatchingCard
+          licitacionId={licitacion.id}
+          codigoExterno={licitacion.codigoExterno}
+          matching={licitacion.matching}
+          analisis={licitacion.analisis}
+        />
       </div>
 
       <DocumentosCard codigoExterno={licitacion.codigoExterno} documentos={licitacion.documentos} />

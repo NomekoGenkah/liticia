@@ -9,12 +9,6 @@ const ALTO_MINIMO_PX = 3;
 
 const NOMBRE_DIA = ["do", "lu", "ma", "mi", "ju", "vi", "sá"];
 
-/** "2026-07-17" a fecha local. `new Date(iso)` la interpretaría como UTC y correría el día. */
-function parsearDiaLocal(iso: string): Date {
-  const [año, mes, dia] = iso.split("-").map(Number);
-  return new Date(año!, mes! - 1, dia!);
-}
-
 function aClaveIso(fecha: Date): string {
   return `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, "0")}-${String(
     fecha.getDate()

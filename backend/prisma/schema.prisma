@@ -104,6 +104,103 @@ model IngestaRun {
   detalleError      String?           @db.Text
 }
 
+/// Los tres procesos de IA que corren en batch. El discriminador de ProcesoRun.
+enum ProcesoTipo {
+  ANALISIS
+  MATCHING
+  EMBEDDING
+}
+
+enum ProcesoDisparador {
+  MANUAL
+  CLI
+}
+
+/// INTERRUMPIDO es distinto de FALLIDO a propósito: "el modelo falló" y "se cayó el backend a mitad
+/// del run" mandan a depurar a lugares muy distintos.
+enum ProcesoRunEstado {
+  EN_PROCESO
+  COMPLETADO
+  FALLIDO
+  CANCELADO
+  INTERRUMPIDO
+}
+
+enum ProcesoItemEstado {
+  PENDIENTE
+  EN_PROCESO
+  COMPLETADO
+  FALLIDO
+  OMITIDO
+  CANCELADO
+}
+
+/// Historial de las corridas de IA, con el mismo rol que IngestaRun tiene para la ingesta.
+///
+/// Uno solo con `tipo` en vez de tres modelos: serían columna por columna idénticos (los tres
+/// resúmenes ya lo son), y `tipo` es justo el parámetro que la ruta /api/procesos/:tipo necesita.
+///
+/// No absorbe a IngestaRun: sus contadores son otros (nuevas/actualizadas), su disparador incluye
+/// CRON, no es por-licitación, no habla con un LLM y no es cancelable. Unificarlos obligaría a un
+/// `resumen Json` que le saca el tipado a los contadores compartidos a cambio de nada.
+model ProcesoRun {
+  id           String            @id @default(uuid())
+  tipo         ProcesoTipo
+  disparadoPor ProcesoDisparador @default(MANUAL)
+
+  /// { modo: "PENDIENTES", segmentos: [...] } | { modo: "IDS", ids: [...] }
+  parametros Json
+  /// Con qué modelo corrió. Un run viejo no se compara con uno nuevo si cambió OLLAMA_MODEL.
+  modelo     String
+
+  fechaInicio DateTime  @default(now())
+  fechaFin    DateTime?
+
+  totalEncontradas Int @default(0)
+  totalCompletadas Int @default(0)
+  totalFallidas    Int @default(0)
+  /// Ítems que el plan descartó con un motivo (p. ej. un documento sin texto extraído).
+  totalOmitidos    Int @default(0)
+
+  estado       ProcesoRunEstado @default(EN_PROCESO)
+  detalleError String?          @db.Text
+
+  items ProcesoRunItem[]
+
+  @@index([tipo, fechaInicio])
+  @@index([tipo, estado])
+}
+
+/// Una licitación (o documento) dentro de un run. Los contadores del run solos no responden la
+/// pregunta por la que existe un historial: "¿cuáles fueron las 3 que fallaron?".
+///
+/// LicitacionAnalisis.detalleError no sustituye a esto: es 1:1 con la licitación, se pisa en el
+/// siguiente intento y no tiene vínculo con el run. Y para embeddings no hay estado por documento.
+model ProcesoRunItem {
+  id    String     @id @default(uuid())
+  runId String
+  run   ProcesoRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  /// licitacionId | documentoId. A propósito SIN foreign key: el historial registra lo que pasó y
+  /// tiene que sobrevivir al borrado de la licitación o del documento que lo originó.
+  objetoId String
+  /// Denormalizados por lo mismo: el historial se lee aunque el objeto ya no exista.
+  etiqueta  String // codigoExterno | nombreArchivo
+  titulo    String?
+  subtitulo String?
+  /// Posición en la cola del run. Es la identidad del ítem dentro del run.
+  orden     Int
+
+  estado       ProcesoItemEstado @default(PENDIENTE)
+  duracionMs   Int?
+  detalleError String?           @db.Text
+  fechaInicio  DateTime?
+  fechaFin     DateTime?
+
+  @@unique([runId, orden])
+  @@index([runId, estado])
+}
+
 enum NivelComplejidad {
   BAJA
   MEDIA

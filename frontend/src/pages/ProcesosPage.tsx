@@ -1,9 +1,8 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { IngestaPanel } from "@/components/procesos/IngestaPanel";
 import { IngestaRunsTable } from "@/components/procesos/IngestaRunsTable";
-import { AnalisisPanel } from "@/components/procesos/AnalisisPanel";
-import { MatchingPanel } from "@/components/procesos/MatchingPanel";
-import { EmbeddingPanel } from "@/components/procesos/EmbeddingPanel";
+import { ProcesoPanel } from "@/components/procesos/ProcesoPanel";
+import { ProcesoRunsTable } from "@/components/procesos/ProcesoRunsTable";
 
 export function ProcesosPage() {
   return (
@@ -21,11 +20,21 @@ export function ProcesosPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <AnalisisPanel />
-        <MatchingPanel />
-        <EmbeddingPanel />
-      </div>
+      {/* En una columna y no en grid: el panel en vivo muestra el texto del modelo saliendo, y a
+          media pantalla el JSON queda ilegible. */}
+      <ProcesoPanel tipo="ANALISIS" />
+      <ProcesoPanel tipo="MATCHING" />
+      <ProcesoPanel tipo="EMBEDDING" />
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Historial de procesos IA</CardTitle>
+          <CardDescription>Cada corrida de análisis, matching o embeddings. Abrí una para ver qué pasó con cada licitación.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ProcesoRunsTable />
+        </CardContent>
+      </Card>
     </div>
   );
 }

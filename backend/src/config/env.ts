@@ -16,7 +16,22 @@ const envSchema = z.object({
 
   OLLAMA_URL: z.string().url().default("http://host.docker.internal:11434"),
   OLLAMA_MODEL: z.string().default("qwen3:8b"),
+  /**
+   * Tope de pared para las llamadas SIN streaming: generarEmbedding() y generarRespuesta().
+   * Análisis y matching ya no lo usan — al pasar a streaming, cortar una generación por ser larga
+   * dejó de tener sentido, y lo reemplaza OLLAMA_STREAM_IDLE_TIMEOUT_MS.
+   */
   OLLAMA_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(60000),
+  /**
+   * Máximo hueco tolerado ENTRE tokens en una generación con streaming. Es lo que detecta un
+   * Ollama colgado: mientras el modelo escriba, la generación sigue por más que tarde.
+   */
+  OLLAMA_STREAM_IDLE_TIMEOUT_MS: z.coerce.number().int().positive().default(60000),
+  /**
+   * Red de seguridad de pared para el streaming, por si el watchdog de inactividad no alcanza
+   * (un modelo que emite un token cada 59s indefinidamente). No debería dispararse nunca.
+   */
+  OLLAMA_STREAM_HARD_CAP_MS: z.coerce.number().int().positive().default(600000),
   OLLAMA_RETRY_MAX: z.coerce.number().int().min(0).default(2),
   OLLAMA_RETRY_BASE_DELAY_MS: z.coerce.number().int().positive().default(1000),
   OLLAMA_THINK: z

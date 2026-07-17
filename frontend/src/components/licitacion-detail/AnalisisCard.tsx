@@ -4,49 +4,65 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardAction } from "@/components/ui/card";
 import { generarAnalisis } from "@/api/licitaciones";
-import { obtenerEstadoAnalisis } from "@/api/analisis";
 import { ApiError } from "@/api/client";
-import { useProcesoPolling } from "@/hooks/useProcesoPolling";
+import { ProcesoPanelVivo } from "@/components/procesos/ProcesoPanelVivo";
+import { keyEstadoProceso, useProcesoEstado } from "@/hooks/useProcesoEventos";
 import type { LicitacionAnalisis } from "@/types/api";
 
 const ETIQUETAS_COMPLEJIDAD: Record<string, string> = { BAJA: "Baja", MEDIA: "Media", ALTA: "Alta" };
 
-export function AnalisisCard({ codigoExterno, analisis }: { codigoExterno: string; analisis: LicitacionAnalisis | null }) {
+const ERRORES: Record<string, string> = {
+  PROCESO_EN_PROCESO: "Ya hay un análisis en curso, espera a que termine.",
+};
+
+export function AnalisisCard({
+  licitacionId,
+  codigoExterno,
+  analisis,
+}: {
+  licitacionId: string;
+  codigoExterno: string;
+  analisis: LicitacionAnalisis | null;
+}) {
   const queryClient = useQueryClient();
-  const { enProceso } = useProcesoPolling(["analisis-estado"], obtenerEstadoAnalisis);
+  const { data: estado } = useProcesoEstado("ANALISIS");
 
   const mutation = useMutation({
     mutationFn: () => generarAnalisis(codigoExterno),
-    onSuccess: () => {
-      toast.success("Análisis generado correctamente");
-      queryClient.invalidateQueries({ queryKey: ["licitacion", codigoExterno] });
-      queryClient.invalidateQueries({ queryKey: ["licitaciones"] });
-    },
+    // Sin toast de éxito: el 202 solo dice que arrancó, y el panel de abajo ya lo muestra.
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keyEstadoProceso("ANALISIS") }),
     onError: (err) => {
-      if (err instanceof ApiError && err.code === "ANALISIS_EN_PROCESO") {
-        toast.error("Ya hay un análisis en curso, espera a que termine.");
-      } else {
-        toast.error(err instanceof Error ? err.message : "No se pudo generar el análisis");
-      }
+      const mensaje = err instanceof ApiError ? ERRORES[err.code] : undefined;
+      toast.error(mensaje ?? (err instanceof Error ? err.message : "No se pudo generar el análisis"));
     },
   });
 
-  const puedeGenerar = !analisis || analisis.estado === "FALLIDO";
+  // El panel en vivo solo si el run que corre incluye a ESTA licitación: si no, el detalle mostraría
+  // el avance de un batch de 140 ajenas.
+  const enEsteRun = Boolean(estado?.enProceso && estado.run?.objetoIds.includes(licitacionId));
+  const otroRunEnCurso = Boolean(estado?.enProceso) && !enEsteRun;
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Análisis IA</CardTitle>
-        {puedeGenerar && (
-          <CardAction>
-            <Button size="sm" disabled={enProceso || mutation.isPending} onClick={() => mutation.mutate()}>
-              {mutation.isPending ? "Generando…" : analisis ? "Reintentar análisis" : "Generar análisis"}
-            </Button>
-          </CardAction>
-        )}
+        <CardAction>
+          <Button
+            size="sm"
+            disabled={estado?.enProceso || mutation.isPending}
+            onClick={() => mutation.mutate()}
+            title={otroRunEnCurso ? "Hay otro análisis corriendo: espera a que termine" : undefined}
+          >
+            {analisis?.estado === "COMPLETADO" ? "Regenerar análisis" : analisis ? "Reintentar análisis" : "Generar análisis"}
+          </Button>
+        </CardAction>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
-        {!analisis && <p className="text-sm text-muted-foreground">Esta licitación todavía no tiene análisis.</p>}
+        {enEsteRun && <ProcesoPanelVivo tipo="ANALISIS" />}
+
+        {!analisis && !enEsteRun && (
+          <p className="text-sm text-muted-foreground">Esta licitación todavía no tiene análisis.</p>
+        )}
 
         {analisis?.estado === "FALLIDO" && (
           <p className="text-sm text-destructive">

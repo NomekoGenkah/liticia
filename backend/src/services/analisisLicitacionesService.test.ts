@@ -4,7 +4,7 @@ vi.mock("../config/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), err
 vi.mock("../config/env", () => ({ config: { OLLAMA_MODEL: "qwen3:8b" } }));
 
 import { AnalisisLicitacionesService } from "./analisisLicitacionesService";
-import { NotFoundError } from "../utils/errors";
+import { NotFoundError, ProcesoCanceladoError } from "../utils/errors";
 import type { LicitacionPendiente } from "../repositories/analisisLicitacionRepository";
 
 const licitacionBase = {
@@ -28,40 +28,33 @@ const resultadoLlm = {
   nivelComplejidad: "media" as const,
 };
 
+const opcionesItem = () => ({ signal: new AbortController().signal, onToken: vi.fn(), onReintento: vi.fn() });
+
 function buildService() {
   const ollamaClient = { generarAnalisis: vi.fn() };
-  const licitacionRepo = { findByCodigoExterno: vi.fn() };
   const analisisRepo = {
     guardarCompletado: vi.fn().mockResolvedValue({ id: "an-1", duracionMs: 10 }),
     guardarFallido: vi.fn().mockResolvedValue({ id: "an-1" }),
     listarPendientesActivas: vi.fn(),
+    listarPorIds: vi.fn(),
   };
   const perfilEmpresaRepo = { obtener: vi.fn().mockResolvedValue(null) };
 
   const service = new AnalisisLicitacionesService(
     ollamaClient as never,
-    licitacionRepo as never,
     analisisRepo as never,
     perfilEmpresaRepo as never
   );
 
-  return { service, ollamaClient, licitacionRepo, analisisRepo, perfilEmpresaRepo };
+  return { service, ollamaClient, analisisRepo, perfilEmpresaRepo };
 }
 
-describe("AnalisisLicitacionesService.analizarUna", () => {
-  it("lanza NotFoundError si la licitación no existe", async () => {
-    const { service, licitacionRepo } = buildService();
-    licitacionRepo.findByCodigoExterno.mockResolvedValueOnce(null);
-
-    await expect(service.analizarUna("no-existe")).rejects.toBeInstanceOf(NotFoundError);
-  });
-
+describe("AnalisisLicitacionesService.procesar", () => {
   it("guarda el análisis completado en éxito", async () => {
-    const { service, ollamaClient, licitacionRepo, analisisRepo } = buildService();
-    licitacionRepo.findByCodigoExterno.mockResolvedValueOnce({ ...licitacionBase, montoEstimado: 1000000 });
+    const { service, ollamaClient, analisisRepo } = buildService();
     ollamaClient.generarAnalisis.mockResolvedValueOnce(resultadoLlm);
 
-    const resultado = await service.analizarUna("123-45-LE24");
+    const resultado = await service.procesar(licitacionBase, opcionesItem());
 
     expect(analisisRepo.guardarCompletado).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -76,78 +69,98 @@ describe("AnalisisLicitacionesService.analizarUna", () => {
   });
 
   it("guarda el análisis fallido y relanza el error si Ollama falla", async () => {
-    const { service, ollamaClient, licitacionRepo, analisisRepo } = buildService();
-    licitacionRepo.findByCodigoExterno.mockResolvedValueOnce(licitacionBase);
+    const { service, ollamaClient, analisisRepo } = buildService();
     ollamaClient.generarAnalisis.mockRejectedValueOnce(new Error("ollama caído"));
 
-    await expect(service.analizarUna("123-45-LE24")).rejects.toThrow("ollama caído");
+    await expect(service.procesar(licitacionBase, opcionesItem())).rejects.toThrow("ollama caído");
 
     expect(analisisRepo.guardarFallido).toHaveBeenCalledWith(
       expect.objectContaining({ licitacionId: "lic-1", detalleError: "ollama caído" })
     );
     expect(analisisRepo.guardarCompletado).not.toHaveBeenCalled();
   });
+
+  it("NO persiste nada si el usuario canceló: la licitación vuelve a pendientes", async () => {
+    // Si esto se rompe, cancelar marca la licitación FALLIDA con un intento gastado y la saca de
+    // la cola de pendientes para siempre — un fallo silencioso y carísimo de diagnosticar.
+    const { service, ollamaClient, analisisRepo } = buildService();
+    ollamaClient.generarAnalisis.mockRejectedValueOnce(new ProcesoCanceladoError());
+
+    await expect(service.procesar(licitacionBase, opcionesItem())).rejects.toBeInstanceOf(ProcesoCanceladoError);
+
+    expect(analisisRepo.guardarFallido).not.toHaveBeenCalled();
+    expect(analisisRepo.guardarCompletado).not.toHaveBeenCalled();
+  });
+
+  it("le pasa el signal y el onToken al cliente para poder cancelar y ver el progreso", async () => {
+    const { service, ollamaClient } = buildService();
+    ollamaClient.generarAnalisis.mockResolvedValueOnce(resultadoLlm);
+    const opts = opcionesItem();
+
+    await service.procesar(licitacionBase, opts);
+
+    expect(ollamaClient.generarAnalisis).toHaveBeenCalledWith(expect.anything(), opts);
+  });
 });
 
-describe("AnalisisLicitacionesService.analizarPendientes", () => {
-  it("continúa tras un error por ítem y agrega los contadores correctamente", async () => {
-    const { service, ollamaClient, analisisRepo } = buildService();
-    const pendientes: LicitacionPendiente[] = [
-      { ...licitacionBase, id: "lic-1", codigoExterno: "cod-1" },
-      { ...licitacionBase, id: "lic-2", codigoExterno: "cod-2" },
-      { ...licitacionBase, id: "lic-3", codigoExterno: "cod-3" },
-    ];
-    analisisRepo.listarPendientesActivas.mockResolvedValueOnce(pendientes);
+describe("AnalisisLicitacionesService.planificar", () => {
+  describe("modo PENDIENTES", () => {
+    it("acota el batch a los segmentos UNSPSC del perfil", async () => {
+      const { service, analisisRepo, perfilEmpresaRepo } = buildService();
+      perfilEmpresaRepo.obtener.mockResolvedValue({ categoriasUnspsc: ["43232400", "81111500", "43231500"] });
+      analisisRepo.listarPendientesActivas.mockResolvedValueOnce([]);
 
-    ollamaClient.generarAnalisis
-      .mockResolvedValueOnce(resultadoLlm)
-      .mockRejectedValueOnce(new Error("falla puntual"))
-      .mockResolvedValueOnce(resultadoLlm);
+      const plan = await service.planificar({ modo: "PENDIENTES" });
 
-    const resumen = await service.analizarPendientes();
+      expect(analisisRepo.listarPendientesActivas).toHaveBeenCalledWith(["43", "81"]);
+      expect(plan.parametros).toEqual({ modo: "PENDIENTES", segmentos: ["43", "81"] });
+    });
 
-    expect(resumen).toEqual({ totalEncontradas: 3, totalCompletadas: 2, totalFallidas: 1 });
-    expect(analisisRepo.guardarCompletado).toHaveBeenCalledTimes(2);
-    expect(analisisRepo.guardarFallido).toHaveBeenCalledTimes(1);
+    it("procesa todo si no hay perfil configurado", async () => {
+      // El filtro nunca puede dejar al batch sin hacer nada por falta de perfil.
+      const { service, analisisRepo, perfilEmpresaRepo } = buildService();
+      perfilEmpresaRepo.obtener.mockResolvedValue(null);
+      analisisRepo.listarPendientesActivas.mockResolvedValueOnce([]);
+
+      await service.planificar({ modo: "PENDIENTES" });
+
+      expect(analisisRepo.listarPendientesActivas).toHaveBeenCalledWith([]);
+    });
+
+    it("procesa todo si el perfil no declaró categorías", async () => {
+      const { service, analisisRepo, perfilEmpresaRepo } = buildService();
+      perfilEmpresaRepo.obtener.mockResolvedValue({ categoriasUnspsc: [] });
+      analisisRepo.listarPendientesActivas.mockResolvedValueOnce([]);
+
+      await service.planificar({ modo: "PENDIENTES" });
+
+      expect(analisisRepo.listarPendientesActivas).toHaveBeenCalledWith([]);
+    });
   });
 
-  it("devuelve contadores en cero si no hay pendientes", async () => {
-    const { service, analisisRepo } = buildService();
-    analisisRepo.listarPendientesActivas.mockResolvedValueOnce([]);
+  describe("modo IDS", () => {
+    it("NO aplica el prefiltro UNSPSC: las eligió el usuario", async () => {
+      // El prefiltro decide a qué gastarle LLM cuando elige el sistema. Si lo aplicara acá,
+      // "analizar 5 seleccionadas" analizaría 2 sin explicar por qué.
+      const { service, analisisRepo, perfilEmpresaRepo } = buildService();
+      perfilEmpresaRepo.obtener.mockResolvedValue({ categoriasUnspsc: ["43232400"] });
+      analisisRepo.listarPorIds.mockResolvedValueOnce([licitacionBase]);
 
-    const resumen = await service.analizarPendientes();
+      const plan = await service.planificar({ modo: "IDS", ids: ["lic-1"] });
 
-    expect(resumen).toEqual({ totalEncontradas: 0, totalCompletadas: 0, totalFallidas: 0 });
-  });
+      expect(analisisRepo.listarPorIds).toHaveBeenCalledWith(["lic-1"]);
+      expect(analisisRepo.listarPendientesActivas).not.toHaveBeenCalled();
+      expect(plan.items).toEqual([licitacionBase]);
+      expect(plan.parametros).toEqual({ modo: "IDS", ids: ["lic-1"] });
+    });
 
-  it("acota el batch a los segmentos UNSPSC del perfil", async () => {
-    const { service, analisisRepo, perfilEmpresaRepo } = buildService();
-    perfilEmpresaRepo.obtener.mockResolvedValue({ categoriasUnspsc: ["43232400", "81111500", "43231500"] });
-    analisisRepo.listarPendientesActivas.mockResolvedValueOnce([]);
+    it("lanza NotFoundError si alguno de los ids no existe", async () => {
+      const { service, analisisRepo } = buildService();
+      analisisRepo.listarPorIds.mockResolvedValueOnce([licitacionBase]);
 
-    await service.analizarPendientes();
-
-    expect(analisisRepo.listarPendientesActivas).toHaveBeenCalledWith(["43", "81"]);
-  });
-
-  it("procesa todo si no hay perfil configurado", async () => {
-    // El filtro nunca puede dejar al batch sin hacer nada por falta de perfil.
-    const { service, analisisRepo, perfilEmpresaRepo } = buildService();
-    perfilEmpresaRepo.obtener.mockResolvedValue(null);
-    analisisRepo.listarPendientesActivas.mockResolvedValueOnce([]);
-
-    await service.analizarPendientes();
-
-    expect(analisisRepo.listarPendientesActivas).toHaveBeenCalledWith([]);
-  });
-
-  it("procesa todo si el perfil no declaró categorías", async () => {
-    const { service, analisisRepo, perfilEmpresaRepo } = buildService();
-    perfilEmpresaRepo.obtener.mockResolvedValue({ categoriasUnspsc: [] });
-    analisisRepo.listarPendientesActivas.mockResolvedValueOnce([]);
-
-    await service.analizarPendientes();
-
-    expect(analisisRepo.listarPendientesActivas).toHaveBeenCalledWith([]);
+      await expect(service.planificar({ modo: "IDS", ids: ["lic-1", "no-existe"] })).rejects.toBeInstanceOf(
+        NotFoundError
+      );
+    });
   });
 });

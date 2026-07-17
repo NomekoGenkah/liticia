@@ -2,13 +2,12 @@ import { Router } from "express";
 import { z } from "zod";
 import { licitacionRepository } from "../repositories/licitacionRepository";
 import { documentoLicitacionRepository } from "../repositories/documentoLicitacionRepository";
-import { analizarLicitacion } from "../services/analisisRunner";
-import { matchearLicitacion } from "../services/matchingRunner";
 import { listarPreguntas, responderPregunta } from "../services/preguntasRunner";
+import { getRunner } from "../services/procesos/registry";
 import { DocumentosLicitacionService } from "../services/documentosLicitacionService";
 import { LicitacionQueryService, parseOrderBy } from "../services/licitacionQueryService";
 import { paginationSchema } from "../utils/pagination";
-import { UnprocessableEntityError } from "../utils/errors";
+import { NotFoundError, UnprocessableEntityError } from "../utils/errors";
 import { uploadDocumentoMiddleware } from "./documentos.middleware";
 
 const queryService = new LicitacionQueryService(licitacionRepository);
@@ -61,10 +60,27 @@ licitacionesRouter.get("/:codigoExterno", async (req, res, next) => {
   }
 });
 
+/**
+ * Dispara un run de una sola licitación y responde de inmediato con su id.
+ *
+ * Se conserva el path por codigoExterno en vez de mandar al cliente a /procesos/:tipo/ejecutar con
+ * un id interno: el modelo mental acá es "analizar ESTA licitación", y el codigoExterno es la clave
+ * pública de la app. Traducirlo a id son tres líneas.
+ *
+ * Asíncrono (202) desde la Fase 8: antes esperaba al modelo con la request abierta, o sea minutos
+ * de página muerta. El progreso se sigue por GET /api/procesos/eventos, igual que un batch.
+ */
+async function iniciarRunDeUna(codigoExterno: string, tipo: "ANALISIS" | "MATCHING") {
+  const licitacion = await licitacionRepository.findByCodigoExterno(codigoExterno, false);
+  if (!licitacion) throw new NotFoundError(`No existe la licitación ${codigoExterno}`);
+
+  const { runId } = await getRunner(tipo).iniciar({ modo: "IDS", ids: [licitacion.id] }, "MANUAL");
+  return { runId, tipo, totalEncontradas: 1 };
+}
+
 licitacionesRouter.post("/:codigoExterno/analisis", async (req, res, next) => {
   try {
-    const resultado = await analizarLicitacion(req.params.codigoExterno);
-    res.json(resultado);
+    res.status(202).json(await iniciarRunDeUna(req.params.codigoExterno, "ANALISIS"));
   } catch (err) {
     next(err);
   }
@@ -72,8 +88,7 @@ licitacionesRouter.post("/:codigoExterno/analisis", async (req, res, next) => {
 
 licitacionesRouter.post("/:codigoExterno/matching", async (req, res, next) => {
   try {
-    const resultado = await matchearLicitacion(req.params.codigoExterno);
-    res.json(resultado);
+    res.status(202).json(await iniciarRunDeUna(req.params.codigoExterno, "MATCHING"));
   } catch (err) {
     next(err);
   }

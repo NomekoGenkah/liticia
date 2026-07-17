@@ -20,8 +20,50 @@ import {
   parseRespuestaTexto,
   validarEmbeddings,
 } from "./ollamaClient";
+import { ProcesoCanceladoError } from "../utils/errors";
 
 const vectorValido = () => Array.from({ length: EMBEDDING_DIMENSIONS }, () => 0.1);
+
+interface ChunkFalso {
+  content?: string;
+  thinking?: string;
+}
+
+/**
+ * Imita el AbortableAsyncIterator que devuelve chat() con stream:true. `abort()` termina el
+ * iterador, que es justo lo que hace el de verdad: el for-await corta y el catch decide qué error
+ * corresponde según el estado del signal.
+ */
+function iteradorFalso(chunks: ChunkFalso[], onAbort?: () => void) {
+  let abortado = false;
+
+  return {
+    abort() {
+      abortado = true;
+      onAbort?.();
+    },
+    async *[Symbol.asyncIterator]() {
+      for (const chunk of chunks) {
+        if (abortado) return;
+        yield { message: { role: "assistant", content: chunk.content ?? "", thinking: chunk.thinking } };
+      }
+    },
+  };
+}
+
+/** Parte un texto en chunks de a un carácter, como haría el modelo token a token. */
+const enChunks = (texto: string): ChunkFalso[] => [...texto].map((c) => ({ content: c }));
+
+const opcionesBase = {
+  host: "http://localhost:11434",
+  model: "qwen3:8b",
+  timeoutMs: 60000,
+  streamIdleTimeoutMs: 60000,
+  streamHardCapMs: 600000,
+  retryMax: 2,
+  retryBaseDelayMs: 1,
+  think: false,
+};
 
 const respuestaValida = {
   resumenEjecutivo: "Contratación de servicio de mantención.",
@@ -113,18 +155,10 @@ describe("OllamaClient.generarAnalisis", () => {
     chatMock.mockReset();
   });
 
-  it("llama a chat() con model/format/think correctos y parsea la respuesta", async () => {
-    chatMock.mockResolvedValueOnce({ message: { role: "assistant", content: JSON.stringify(respuestaValida) } });
+  it("llama a chat() con model/format/think correctos y parsea la respuesta acumulada", async () => {
+    chatMock.mockResolvedValueOnce(iteradorFalso(enChunks(JSON.stringify(respuestaValida))));
 
-    const client = new OllamaClient({
-      host: "http://localhost:11434",
-      model: "qwen3:8b",
-      timeoutMs: 60000,
-      retryMax: 2,
-      retryBaseDelayMs: 10,
-      think: false,
-    });
-
+    const client = new OllamaClient(opcionesBase);
     const resultado = await client.generarAnalisis({ system: "sys", user: "user" });
 
     expect(resultado).toEqual(respuestaValida);
@@ -132,7 +166,8 @@ describe("OllamaClient.generarAnalisis", () => {
       expect.objectContaining({
         model: "qwen3:8b",
         think: false,
-        stream: false,
+        // El streaming es lo que habilita la cancelación, no una preferencia de presentación.
+        stream: true,
         format: expect.objectContaining({ type: "object" }),
         messages: [
           { role: "system", content: "sys" },
@@ -142,39 +177,83 @@ describe("OllamaClient.generarAnalisis", () => {
     );
   });
 
+  it("emite cada chunk por onToken en el canal que corresponde", async () => {
+    chatMock.mockResolvedValueOnce(
+      iteradorFalso([
+        { thinking: "Veamos " },
+        { thinking: "los ítems." },
+        ...enChunks(JSON.stringify(respuestaValida)),
+      ])
+    );
+
+    const tokens: Array<[string, string]> = [];
+    const client = new OllamaClient(opcionesBase);
+    await client.generarAnalisis({ system: "sys", user: "user" }, { onToken: (t, c) => tokens.push([t, c]) });
+
+    const pensamiento = tokens.filter(([, c]) => c === "pensamiento").map(([t]) => t);
+    const respuesta = tokens.filter(([, c]) => c === "respuesta").map(([t]) => t);
+
+    expect(pensamiento.join("")).toBe("Veamos los ítems.");
+    expect(respuesta.join("")).toBe(JSON.stringify(respuestaValida));
+  });
+
+  it("aborta el iterador y lanza ProcesoCanceladoError si el signal se cancela a mitad", async () => {
+    const controller = new AbortController();
+    const abortSpy = vi.fn();
+
+    // Cancela apenas empieza a llegar contenido, como haría el usuario apretando "Cancelar".
+    chatMock.mockResolvedValueOnce(
+      iteradorFalso(
+        [{ content: '{"resumen' }, { content: "Ejecutivo" }, { content: '": "no llega"}' }],
+        abortSpy
+      )
+    );
+
+    const client = new OllamaClient(opcionesBase);
+    const promesa = client.generarAnalisis(
+      { system: "sys", user: "user" },
+      { signal: controller.signal, onToken: () => controller.abort() }
+    );
+
+    await expect(promesa).rejects.toBeInstanceOf(ProcesoCanceladoError);
+    expect(abortSpy).toHaveBeenCalled();
+    // Lo importante: cancelar NO dispara reintentos. Sin esto, el botón "Cancelar" iniciaría
+    // dos generaciones más contra Ollama.
+    expect(chatMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("no arranca la generación si el signal ya venía cancelado", async () => {
+    chatMock.mockResolvedValueOnce(iteradorFalso(enChunks(JSON.stringify(respuestaValida))));
+
+    const client = new OllamaClient(opcionesBase);
+    await expect(
+      client.generarAnalisis({ system: "sys", user: "user" }, { signal: AbortSignal.abort() })
+    ).rejects.toBeInstanceOf(ProcesoCanceladoError);
+  });
+
   it("reintenta vía withRetry si chat() rechaza, y lanza tras agotar los intentos", async () => {
     chatMock.mockRejectedValue(new Error("conexión rechazada"));
 
-    const client = new OllamaClient({
-      host: "http://localhost:11434",
-      model: "qwen3:8b",
-      timeoutMs: 60000,
-      retryMax: 2,
-      retryBaseDelayMs: 1,
-      think: false,
-    });
+    const client = new OllamaClient(opcionesBase);
 
     await expect(client.generarAnalisis({ system: "sys", user: "user" })).rejects.toThrow(/Falló la llamada a Ollama/);
     expect(chatMock).toHaveBeenCalledTimes(3);
   });
 
-  it("se recupera si un intento falla pero el siguiente funciona", async () => {
+  it("se recupera si un intento falla pero el siguiente funciona, y avisa del reintento", async () => {
     chatMock
       .mockRejectedValueOnce(new Error("timeout"))
-      .mockResolvedValueOnce({ message: { role: "assistant", content: JSON.stringify(respuestaValida) } });
+      .mockResolvedValueOnce(iteradorFalso(enChunks(JSON.stringify(respuestaValida))));
 
-    const client = new OllamaClient({
-      host: "http://localhost:11434",
-      model: "qwen3:8b",
-      timeoutMs: 60000,
-      retryMax: 2,
-      retryBaseDelayMs: 1,
-      think: false,
-    });
+    const onReintento = vi.fn();
+    const client = new OllamaClient(opcionesBase);
 
-    const resultado = await client.generarAnalisis({ system: "sys", user: "user" });
+    const resultado = await client.generarAnalisis({ system: "sys", user: "user" }, { onReintento });
     expect(resultado).toEqual(respuestaValida);
     expect(chatMock).toHaveBeenCalledTimes(2);
+    // El llamador tiene que enterarse para descartar la salida parcial del intento fallido: si no,
+    // el texto del intento 1 queda pegado al del 2 en pantalla.
+    expect(onReintento).toHaveBeenCalledWith(1);
   });
 });
 
@@ -183,18 +262,10 @@ describe("OllamaClient.generarMatching", () => {
     chatMock.mockReset();
   });
 
-  it("llama a chat() con model/format/think correctos y parsea la respuesta", async () => {
-    chatMock.mockResolvedValueOnce({ message: { role: "assistant", content: JSON.stringify(matchingValido) } });
+  it("llama a chat() con model/format/think correctos y parsea la respuesta acumulada", async () => {
+    chatMock.mockResolvedValueOnce(iteradorFalso(enChunks(JSON.stringify(matchingValido))));
 
-    const client = new OllamaClient({
-      host: "http://localhost:11434",
-      model: "qwen3:8b",
-      timeoutMs: 60000,
-      retryMax: 2,
-      retryBaseDelayMs: 10,
-      think: false,
-    });
-
+    const client = new OllamaClient(opcionesBase);
     const resultado = await client.generarMatching({ system: "sys", user: "user" });
 
     expect(resultado).toEqual(matchingValido);
@@ -202,7 +273,7 @@ describe("OllamaClient.generarMatching", () => {
       expect.objectContaining({
         model: "qwen3:8b",
         think: false,
-        stream: false,
+        stream: true,
         format: expect.objectContaining({ type: "object" }),
         messages: [
           { role: "system", content: "sys" },
@@ -215,14 +286,7 @@ describe("OllamaClient.generarMatching", () => {
   it("reintenta vía withRetry si chat() rechaza, y lanza tras agotar los intentos", async () => {
     chatMock.mockRejectedValue(new Error("conexión rechazada"));
 
-    const client = new OllamaClient({
-      host: "http://localhost:11434",
-      model: "qwen3:8b",
-      timeoutMs: 60000,
-      retryMax: 2,
-      retryBaseDelayMs: 1,
-      think: false,
-    });
+    const client = new OllamaClient(opcionesBase);
 
     await expect(client.generarMatching({ system: "sys", user: "user" })).rejects.toThrow(/Falló la llamada a Ollama/);
     expect(chatMock).toHaveBeenCalledTimes(3);

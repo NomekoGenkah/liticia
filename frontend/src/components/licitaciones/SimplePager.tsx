@@ -1,11 +1,21 @@
 import { Button } from "@/components/ui/button";
 import type { PaginationMeta } from "@/types/api";
 
-export function SimplePager({ pagination, onPageChange }: { pagination: PaginationMeta; onPageChange: (page: number) => void }) {
+interface Props {
+  pagination: PaginationMeta;
+  onPageChange: (page: number) => void;
+  /** Qué se está paginando, en singular y plural. Por defecto, licitaciones. */
+  entidad?: { singular: string; plural: string };
+}
+
+const LICITACIONES = { singular: "licitación", plural: "licitaciones" };
+
+export function SimplePager({ pagination, onPageChange, entidad = LICITACIONES }: Props) {
   return (
     <div className="flex items-center justify-between text-sm text-muted-foreground">
       <span>
-        {pagination.total} licitacion{pagination.total === 1 ? "" : "es"} · página {pagination.page} de {pagination.totalPages}
+        {pagination.total} {pagination.total === 1 ? entidad.singular : entidad.plural} · página {pagination.page} de{" "}
+        {pagination.totalPages}
       </span>
       <div className="flex gap-2">
         <Button

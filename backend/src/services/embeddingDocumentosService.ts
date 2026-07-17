@@ -6,15 +6,9 @@ import type {
   DocumentoPendienteEmbedding,
   documentoChunkRepository,
 } from "../repositories/documentoChunkRepository";
+import type { OpcionesItem, PlanProceso, SeleccionProceso } from "../types/procesos";
+import { NotFoundError, ProcesoCanceladoError } from "../utils/errors";
 import { chunkText } from "./textChunker";
-
-export interface EmbeddingPendientesResumen {
-  totalEncontrados: number;
-  totalCompletados: number;
-  totalFallidos: number;
-  /** Documentos sin texto aprovechable (típicamente PDFs escaneados): no llegan al modelo. */
-  totalOmitidos: number;
-}
 
 /**
  * nomic-embed-text es asimétrico: fue entrenado con un prefijo que declara para qué se embebe el
@@ -32,43 +26,35 @@ export class EmbeddingDocumentosService {
     private readonly chunkRepo: typeof documentoChunkRepository
   ) {}
 
-  async embeberPendientes(): Promise<EmbeddingPendientesResumen> {
-    const pendientes = await this.chunkRepo.listarDocumentosPendientes();
+  /** Puro: no escribe nada. Sirve tanto para arrancar un run como para la vista previa. */
+  async planificar(seleccion: SeleccionProceso): Promise<PlanProceso<DocumentoPendienteEmbedding, void>> {
+    if (seleccion.modo === "IDS") {
+      const items = await this.chunkRepo.listarDocumentosPorIds(seleccion.ids);
 
-    const resumen: EmbeddingPendientesResumen = {
-      totalEncontrados: pendientes.length,
-      totalCompletados: 0,
-      totalFallidos: 0,
-      totalOmitidos: 0,
-    };
-
-    for (const documento of pendientes) {
-      try {
-        const chunksGenerados = await this.procesar(documento);
-
-        if (chunksGenerados === 0) resumen.totalOmitidos++;
-        else resumen.totalCompletados++;
-      } catch (err) {
-        resumen.totalFallidos++;
-        logger.error(
-          { err, documentoId: documento.id, nombreArchivo: documento.nombreArchivo },
-          "Embedding de documento falló dentro del batch"
-        );
+      const faltantes = seleccion.ids.filter((id) => !items.some((i) => i.id === id));
+      if (faltantes.length > 0) {
+        throw new NotFoundError(`No existen los documentos ${faltantes.join(", ")}`, "DOCUMENTO_NO_ENCONTRADO");
       }
+
+      return { items, omitidos: [], ctx: undefined, parametros: { modo: "IDS", ids: seleccion.ids } };
     }
 
-    logger.info({ ...resumen }, "Batch de embeddings de documentos pendientes finalizado");
-    return resumen;
+    const items = await this.chunkRepo.listarDocumentosPendientes();
+    return { items, omitidos: [], ctx: undefined, parametros: { modo: "PENDIENTES" } };
   }
 
   /**
-   * Devuelve cuántos chunks se generaron (0 = documento sin texto aprovechable).
+   * Indexa un documento. "OMITIDO" = sin texto aprovechable (típicamente un PDF escaneado).
    *
    * A diferencia de análisis/matching, un fallo no se persiste: el chunk no tiene columna de
    * estado, y no hace falta — la ausencia de chunks ya *es* el estado de fallo, porque es el mismo
    * predicado que define "pendiente". El documento se reintenta solo en la próxima corrida.
    */
-  private async procesar(documento: DocumentoPendienteEmbedding): Promise<number> {
+  async procesar(
+    documento: DocumentoPendienteEmbedding,
+    _ctx: void,
+    opts: OpcionesItem
+  ): Promise<"COMPLETADO" | "OMITIDO"> {
     const inicio = Date.now();
     const contenidos = chunkText(documento.textoExtraido);
 
@@ -77,12 +63,17 @@ export class EmbeddingDocumentosService {
         { documentoId: documento.id, nombreArchivo: documento.nombreArchivo },
         "Documento sin texto aprovechable: se omite del embedding (¿PDF escaneado?)"
       );
-      return 0;
+      return "OMITIDO";
     }
 
     const chunks: ChunkInsertInput[] = [];
 
     for (let i = 0; i < contenidos.length; i += config.OLLAMA_EMBED_BATCH_SIZE) {
+      // El único punto de cancelación que tiene un documento: generarEmbedding no acepta signal
+      // (la lib no lo soporta para /api/embed), así que se corta entre lotes. Un documento largo
+      // son varios lotes de segundos, no la generación de minutos de análisis/matching.
+      if (opts.signal.aborted) throw new ProcesoCanceladoError();
+
       const lote = contenidos.slice(i, i + config.OLLAMA_EMBED_BATCH_SIZE);
       const embeddings = await this.ollamaClient.generarEmbedding(lote.map((texto) => PREFIJO_DOCUMENTO + texto));
 
@@ -111,6 +102,6 @@ export class EmbeddingDocumentosService {
       "Embedding de documento completado"
     );
 
-    return chunks.length;
+    return "COMPLETADO";
   }
 }

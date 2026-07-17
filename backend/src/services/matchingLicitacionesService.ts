@@ -1,5 +1,5 @@
 import type { OllamaClient } from "../clients/ollamaClient";
-import type { LicitacionParaMatching, PerfilEmpresaParaMatching } from "../clients/ollamaClient.types";
+import type { PerfilEmpresaParaMatching } from "../clients/ollamaClient.types";
 import { config } from "../config/env";
 import { logger } from "../config/logger";
 import type {
@@ -7,20 +7,15 @@ import type {
   LicitacionParaMatchingPendiente,
 } from "../repositories/matchingLicitacionRepository";
 import type { perfilEmpresaRepository } from "../repositories/perfilEmpresaRepository";
-import type { licitacionRepository } from "../repositories/licitacionRepository";
-import { NotFoundError, UnprocessableEntityError } from "../utils/errors";
+import type { ItemOmitido, OpcionesItem, PlanProceso, SeleccionProceso } from "../types/procesos";
+import { NotFoundError, ProcesoCanceladoError, UnprocessableEntityError } from "../utils/errors";
 import { segmentosDe } from "../utils/unspsc";
 import { buildMatchingPrompt, MATCHING_PROMPT_VERSION } from "./matchingPrompt";
 
-export interface MatchingPendientesResumen {
-  totalEncontradas: number;
-  totalCompletadas: number;
-  totalFallidas: number;
-}
-
-interface LicitacionParaProcesar extends LicitacionParaMatching {
-  id: string;
-  codigoExterno: string;
+/** El perfil resuelto una sola vez por run, en vez de releerlo por cada licitación. */
+export interface ContextoMatching {
+  perfil: PerfilEmpresaParaMatching;
+  perfilVersion: number;
 }
 
 function toPerfilParaMatching(perfil: {
@@ -50,96 +45,77 @@ function toPerfilParaMatching(perfil: {
 export class MatchingLicitacionesService {
   constructor(
     private readonly ollamaClient: OllamaClient,
-    private readonly licitacionRepo: typeof licitacionRepository,
     private readonly perfilEmpresaRepo: typeof perfilEmpresaRepository,
     private readonly matchingRepo: typeof matchingLicitacionRepository
   ) {}
 
-  async matchearUna(codigoExterno: string) {
-    const licitacion = await this.licitacionRepo.findByCodigoExterno(codigoExterno, false);
-    if (!licitacion) throw new NotFoundError(`No existe la licitación ${codigoExterno}`);
-
-    if (licitacion.analisis?.estado !== "COMPLETADO") {
-      throw new UnprocessableEntityError(
-        `La licitación ${codigoExterno} no tiene un análisis completado todavía`,
-        "ANALISIS_REQUERIDO"
-      );
-    }
-
+  /**
+   * Decide qué licitaciones se van a matchear y contra qué perfil.
+   *
+   * Que la validación del perfil viva acá y no en el loop es lo que hace que un batch sin perfil
+   * devuelva un 422 por HTTP: antes se lanzaba después del 202 y el error moría en un log, así que
+   * el frontend decía "matching iniciado" y no pasaba nada más.
+   */
+  async planificar(
+    seleccion: SeleccionProceso
+  ): Promise<PlanProceso<LicitacionParaMatchingPendiente, ContextoMatching>> {
     const perfil = await this.perfilEmpresaRepo.obtener();
     if (!perfil) {
       throw new UnprocessableEntityError("No hay un perfil de empresa configurado", "PERFIL_EMPRESA_REQUERIDO");
     }
 
-    return this.procesar(
-      {
-        id: licitacion.id,
-        codigoExterno: licitacion.codigoExterno,
-        nombre: licitacion.nombre,
-        nombreOrganismo: licitacion.nombreOrganismo,
-        montoEstimado: licitacion.montoEstimado ? Number(licitacion.montoEstimado) : null,
-        moneda: licitacion.moneda,
-        regionUnidad: licitacion.regionUnidad,
-        tipo: licitacion.tipo,
-        fechaCierre: licitacion.fechaCierre,
-        analisis: {
-          resumenEjecutivo: licitacion.analisis.resumenEjecutivo,
-          puntosClave: licitacion.analisis.puntosClave,
-          palabrasClave: licitacion.analisis.palabrasClave,
-          nivelComplejidad: licitacion.analisis.nivelComplejidad,
-        },
-      },
-      toPerfilParaMatching(perfil),
-      perfil.version
-    );
-  }
+    const ctx: ContextoMatching = { perfil: toPerfilParaMatching(perfil), perfilVersion: perfil.version };
 
-  async matchearPendientes(): Promise<MatchingPendientesResumen> {
-    const perfil = await this.perfilEmpresaRepo.obtener();
-    if (!perfil) {
-      throw new UnprocessableEntityError("No hay un perfil de empresa configurado", "PERFIL_EMPRESA_REQUERIDO");
+    if (seleccion.modo === "IDS") {
+      const { listas, sinAnalisis } = await this.matchingRepo.listarPorIds(seleccion.ids);
+
+      const encontradas = [...listas.map((l) => l.id), ...sinAnalisis.map((l) => l.id)];
+      const faltantes = seleccion.ids.filter((id) => !encontradas.includes(id));
+      if (faltantes.length > 0) {
+        throw new NotFoundError(`No existen las licitaciones ${faltantes.join(", ")}`, "LICITACION_NO_ENCONTRADA");
+      }
+
+      // Sin análisis no hay con qué matchear, pero eso no invalida al resto de la selección: se
+      // reportan como omitidas y las demás se procesan. Si NINGUNA tiene análisis, el runner
+      // convierte el primer omitido en el 422 ANALISIS_REQUERIDO de siempre.
+      const omitidos: ItemOmitido[] = sinAnalisis.map((l) => ({
+        objetoId: l.id,
+        etiqueta: l.codigoExterno,
+        titulo: l.nombre,
+        subtitulo: l.nombreOrganismo,
+        motivo: `La licitación ${l.codigoExterno} no tiene un análisis completado todavía`,
+        codigo: "ANALISIS_REQUERIDO",
+      }));
+
+      return { items: listas, omitidos, ctx, parametros: { modo: "IDS", ids: seleccion.ids } };
     }
 
-    const perfilParaMatching = toPerfilParaMatching(perfil);
-
-    // Solo acota el batch; matchearUna() sigue evaluando cualquier licitación que le pidas.
+    // Solo acota el batch de pendientes; matchear por ids evalúa lo que le pidas.
     const segmentos = segmentosDe(perfil.categoriasUnspsc);
-    const pendientes = await this.matchingRepo.listarPendientesActivas(perfil.version, segmentos);
+    const items = await this.matchingRepo.listarPendientesActivas(perfil.version, segmentos);
 
     if (segmentos.length > 0) {
-      logger.info({ segmentos, pendientes: pendientes.length }, "Matching acotado a los segmentos UNSPSC del perfil");
+      logger.info({ segmentos, pendientes: items.length }, "Matching acotado a los segmentos UNSPSC del perfil");
     }
 
-    const resumen: MatchingPendientesResumen = {
-      totalEncontradas: pendientes.length,
-      totalCompletadas: 0,
-      totalFallidas: 0,
+    return {
+      items,
+      omitidos: [],
+      ctx,
+      parametros: { modo: "PENDIENTES", segmentos, perfilVersion: perfil.version },
     };
-
-    for (const licitacion of pendientes) {
-      try {
-        await this.procesar(licitacion, perfilParaMatching, perfil.version);
-        resumen.totalCompletadas++;
-      } catch (err) {
-        resumen.totalFallidas++;
-        logger.error({ err, codigoExterno: licitacion.codigoExterno }, "Matching individual falló dentro del batch");
-      }
-    }
-
-    logger.info({ ...resumen }, "Batch de matching de pendientes finalizado");
-    return resumen;
   }
 
-  private async procesar(
-    licitacion: LicitacionParaProcesar | LicitacionParaMatchingPendiente,
-    perfil: PerfilEmpresaParaMatching,
-    perfilVersion: number
+  async procesar(
+    licitacion: LicitacionParaMatchingPendiente,
+    { perfil, perfilVersion }: ContextoMatching,
+    opts: OpcionesItem
   ) {
     const inicio = Date.now();
     const prompt = buildMatchingPrompt(perfil, licitacion);
 
     try {
-      const resultado = await this.ollamaClient.generarMatching(prompt);
+      const resultado = await this.ollamaClient.generarMatching(prompt, opts);
       const guardado = await this.matchingRepo.guardarCompletado({
         licitacionId: licitacion.id,
         puntaje: resultado.puntaje,
@@ -156,6 +132,10 @@ export class MatchingLicitacionesService {
       );
       return guardado;
     } catch (err) {
+      // Ver el comentario equivalente en analisisLicitacionesService: una cancelación vuelve a la
+      // cola de pendientes, no se persiste como fallo.
+      if (err instanceof ProcesoCanceladoError) throw err;
+
       await this.matchingRepo.guardarFallido({
         licitacionId: licitacion.id,
         modelo: config.OLLAMA_MODEL,

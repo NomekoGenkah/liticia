@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { listarLicitaciones, type ListarLicitacionesParams } from "@/api/licitaciones";
 import { LicitacionesFilters, type LicitacionesFiltrosState } from "@/components/licitaciones/LicitacionesFilters";
 import { LicitacionesTable } from "@/components/licitaciones/LicitacionesTable";
+import { SeleccionBar } from "@/components/licitaciones/SeleccionBar";
 import { SimplePager } from "@/components/licitaciones/SimplePager";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -12,6 +13,14 @@ export function LicitacionesPage() {
   const [page, setPage] = useState(1);
   const [filtros, setFiltros] = useState<LicitacionesFiltrosState>({ orderBy: "fechaPublicacion:desc" });
 
+  /**
+   * Ids, no codigoExterno: es lo que espera el endpoint de procesos.
+   *
+   * En estado local y no en la URL: es efímera, puede tener cientos de ids, y los filtros de esta
+   * página tampoco están en la URL — poner solo la selección sería incoherente.
+   */
+  const [seleccion, setSeleccion] = useState<Set<string>>(new Set());
+
   const params: ListarLicitacionesParams = { page, pageSize: PAGE_SIZE, ...filtros };
 
   const { data, isLoading, isError, error } = useQuery({
@@ -19,6 +28,29 @@ export function LicitacionesPage() {
     queryFn: () => listarLicitaciones(params),
     placeholderData: (prev) => prev,
   });
+
+  const alternar = useCallback((id: string) => {
+    setSeleccion((previa) => {
+      const siguiente = new Set(previa);
+      if (siguiente.has(id)) siguiente.delete(id);
+      else siguiente.add(id);
+      return siguiente;
+    });
+  }, []);
+
+  // No se limpia al cambiar de página: se puede ir juntando una selección entre páginas.
+  const alternarTodas = useCallback((ids: string[], tildar: boolean) => {
+    setSeleccion((previa) => {
+      const siguiente = new Set(previa);
+      for (const id of ids) {
+        if (tildar) siguiente.add(id);
+        else siguiente.delete(id);
+      }
+      return siguiente;
+    });
+  }, []);
+
+  const limpiar = useCallback(() => setSeleccion(new Set()), []);
 
   function handleApply(nuevos: ListarLicitacionesParams) {
     setFiltros(nuevos as LicitacionesFiltrosState);
@@ -47,8 +79,14 @@ export function LicitacionesPage() {
 
       {data && (
         <>
-          <LicitacionesTable licitaciones={data.data} />
+          <LicitacionesTable
+            licitaciones={data.data}
+            seleccion={seleccion}
+            onToggle={alternar}
+            onToggleTodas={alternarTodas}
+          />
           <SimplePager pagination={data.pagination} onPageChange={setPage} />
+          <SeleccionBar seleccion={seleccion} onLimpiar={limpiar} />
         </>
       )}
     </div>

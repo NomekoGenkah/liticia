@@ -59,6 +59,21 @@ export class PayloadTooLargeError extends AppError {
   }
 }
 
+/**
+ * El usuario canceló el proceso que estaba corriendo.
+ *
+ * No extiende AppError a propósito: nunca sale por HTTP. El run que la origina es asíncrono (ya
+ * respondió 202 hace rato), y el único que la ve es el runner, que la usa para distinguir "esto se
+ * canceló" de "esto falló" — la diferencia importa, porque una licitación cancelada tiene que
+ * volver a la cola de pendientes en vez de quedar marcada FALLIDA con un intento gastado.
+ */
+export class ProcesoCanceladoError extends Error {
+  constructor(message: string = "Proceso cancelado por el usuario") {
+    super(message);
+    this.name = "ProcesoCanceladoError";
+  }
+}
+
 export function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunction): void {
   if (err instanceof AppError) {
     logger.warn({ err, path: req.path, code: err.code }, "Request finalizó con error controlado");

@@ -112,22 +112,49 @@ export const documentoChunkRepository = {
         NOT: { textoExtraido: "" },
         chunks: { none: {} },
       },
-      select: {
-        id: true,
-        licitacionId: true,
-        nombreArchivo: true,
-        textoExtraido: true,
-        licitacion: { select: { codigoExterno: true } },
-      },
+      select: SELECT_PARA_EMBEDDING,
       orderBy: { fechaCarga: "asc" },
     });
 
-    return documentos.map((documento) => ({
-      id: documento.id,
-      licitacionId: documento.licitacionId,
-      codigoExterno: documento.licitacion.codigoExterno,
-      nombreArchivo: documento.nombreArchivo,
-      textoExtraido: documento.textoExtraido ?? "",
-    }));
+    return documentos.map(aDocumentoPendiente);
+  },
+
+  /**
+   * Documentos puntuales por id, sin el predicado de "pendiente": re-indexa aunque ya tengan chunks
+   * (reemplazarChunksDeDocumento los pisa). Los eligió el usuario.
+   *
+   * Los que no tengan texto igual salen, y el servicio los reporta como omitidos: hacerlos
+   * desaparecer en silencio dejaría al usuario esperando un documento que nunca se iba a indexar.
+   */
+  async listarDocumentosPorIds(ids: string[]): Promise<DocumentoPendienteEmbedding[]> {
+    const documentos = await prisma.licitacionDocumento.findMany({
+      where: { id: { in: ids } },
+      select: SELECT_PARA_EMBEDDING,
+      orderBy: { fechaCarga: "asc" },
+    });
+
+    return documentos.map(aDocumentoPendiente);
   },
 };
+
+const SELECT_PARA_EMBEDDING = {
+  id: true,
+  licitacionId: true,
+  nombreArchivo: true,
+  textoExtraido: true,
+  licitacion: { select: { codigoExterno: true } },
+} as const;
+
+const aDocumentoPendiente = (documento: {
+  id: string;
+  licitacionId: string;
+  nombreArchivo: string;
+  textoExtraido: string | null;
+  licitacion: { codigoExterno: string };
+}): DocumentoPendienteEmbedding => ({
+  id: documento.id,
+  licitacionId: documento.licitacionId,
+  codigoExterno: documento.licitacion.codigoExterno,
+  nombreArchivo: documento.nombreArchivo,
+  textoExtraido: documento.textoExtraido ?? "",
+});

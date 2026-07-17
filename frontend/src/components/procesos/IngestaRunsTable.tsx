@@ -4,14 +4,33 @@ import { listarIngestaRuns } from "@/api/ingesta";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SimplePager } from "@/components/licitaciones/SimplePager";
-import { formatFechaHora } from "@/lib/format";
-import type { IngestaEstado } from "@/types/api";
+import { formatDuracion, formatFechaHora } from "@/lib/format";
+import type { IngestaEstado, IngestaRun } from "@/types/api";
 
 const VARIANTE: Record<IngestaEstado, "default" | "secondary" | "destructive"> = {
   COMPLETADO: "default",
   EN_PROCESO: "secondary",
   FALLIDO: "destructive",
 };
+
+const INGESTAS = { singular: "ingesta", plural: "ingestas" };
+
+/** Los filtros con los que se disparó, ya legibles. Sin filtros, la ingesta trae el día de hoy. */
+function describirParametros(parametros: unknown): string {
+  if (!parametros || typeof parametros !== "object") return "—";
+
+  const entradas = Object.entries(parametros as Record<string, unknown>).filter(
+    ([, valor]) => valor !== undefined && valor !== null && valor !== ""
+  );
+
+  if (entradas.length === 0) return "sin filtros";
+  return entradas.map(([clave, valor]) => `${clave}: ${String(valor)}`).join(" · ");
+}
+
+function duracionDe(run: IngestaRun): string {
+  if (!run.fechaFin) return "—";
+  return formatDuracion(new Date(run.fechaFin).getTime() - new Date(run.fechaInicio).getTime());
+}
 
 export function IngestaRunsTable() {
   const [page, setPage] = useState(1);
@@ -34,6 +53,7 @@ export function IngestaRunsTable() {
             <TableHead>Inicio</TableHead>
             <TableHead>Disparado por</TableHead>
             <TableHead>Estado</TableHead>
+            <TableHead>Duración</TableHead>
             <TableHead>Encontradas</TableHead>
             <TableHead>Nuevas</TableHead>
             <TableHead>Actualizadas</TableHead>
@@ -43,20 +63,33 @@ export function IngestaRunsTable() {
         <TableBody>
           {data.runs.map((run) => (
             <TableRow key={run.id}>
-              <TableCell>{formatFechaHora(run.fechaInicio)}</TableCell>
+              <TableCell>
+                <div className="flex flex-col">
+                  {formatFechaHora(run.fechaInicio)}
+                  <span className="text-xs text-muted-foreground">{describirParametros(run.parametros)}</span>
+                </div>
+              </TableCell>
               <TableCell>{run.disparadoPor}</TableCell>
               <TableCell>
-                <Badge variant={VARIANTE[run.estado]}>{run.estado}</Badge>
+                <div className="flex flex-col gap-1">
+                  <Badge variant={VARIANTE[run.estado]} className="w-fit">
+                    {run.estado}
+                  </Badge>
+                  {run.detalleError && (
+                    <span className="max-w-64 text-xs text-destructive">{run.detalleError}</span>
+                  )}
+                </div>
               </TableCell>
-              <TableCell>{run.totalEncontradas}</TableCell>
-              <TableCell>{run.totalNuevas}</TableCell>
-              <TableCell>{run.totalActualizadas}</TableCell>
-              <TableCell>{run.totalErrores}</TableCell>
+              <TableCell className="tabular-nums">{duracionDe(run)}</TableCell>
+              <TableCell className="tabular-nums">{run.totalEncontradas}</TableCell>
+              <TableCell className="tabular-nums">{run.totalNuevas}</TableCell>
+              <TableCell className="tabular-nums">{run.totalActualizadas}</TableCell>
+              <TableCell className="tabular-nums">{run.totalErrores}</TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
-      <SimplePager pagination={data.meta} onPageChange={setPage} />
+      <SimplePager pagination={data.meta} onPageChange={setPage} entidad={INGESTAS} />
     </div>
   );
 }

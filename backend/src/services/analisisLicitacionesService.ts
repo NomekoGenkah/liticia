@@ -1,32 +1,19 @@
 import type { OllamaClient } from "../clients/ollamaClient";
-import type { LicitacionParaAnalisis } from "../clients/ollamaClient.types";
 import { config } from "../config/env";
 import { logger } from "../config/logger";
 import type {
   analisisLicitacionRepository,
   LicitacionPendiente,
 } from "../repositories/analisisLicitacionRepository";
-import type { licitacionRepository } from "../repositories/licitacionRepository";
 import type { perfilEmpresaRepository } from "../repositories/perfilEmpresaRepository";
-import { NotFoundError } from "../utils/errors";
+import type { OpcionesItem, PlanProceso, SeleccionProceso } from "../types/procesos";
+import { NotFoundError, ProcesoCanceladoError } from "../utils/errors";
 import { segmentosDe } from "../utils/unspsc";
 import { buildAnalisisPrompt, PROMPT_VERSION } from "./analisisPrompt";
-
-export interface AnalisisPendientesResumen {
-  totalEncontradas: number;
-  totalCompletadas: number;
-  totalFallidas: number;
-}
-
-interface LicitacionParaProcesar extends LicitacionParaAnalisis {
-  id: string;
-  codigoExterno: string;
-}
 
 export class AnalisisLicitacionesService {
   constructor(
     private readonly ollamaClient: OllamaClient,
-    private readonly licitacionRepo: typeof licitacionRepository,
     private readonly analisisRepo: typeof analisisLicitacionRepository,
     /**
      * El análisis en sí no sabe nada del perfil (sigue siendo una descripción neutra de la
@@ -35,70 +22,49 @@ export class AnalisisLicitacionesService {
     private readonly perfilEmpresaRepo: typeof perfilEmpresaRepository
   ) {}
 
-  async analizarUna(codigoExterno: string) {
-    const licitacion = await this.licitacionRepo.findByCodigoExterno(codigoExterno, false);
-    if (!licitacion) throw new NotFoundError(`No existe la licitación ${codigoExterno}`);
+  /**
+   * Decide qué licitaciones se van a analizar. Puro: no escribe nada, así que sirve igual para
+   * arrancar un run y para mostrar una vista previa de lo que ese run haría.
+   */
+  async planificar(seleccion: SeleccionProceso): Promise<PlanProceso<LicitacionPendiente, void>> {
+    if (seleccion.modo === "IDS") {
+      const items = await this.analisisRepo.listarPorIds(seleccion.ids);
 
-    return this.procesar({
-      id: licitacion.id,
-      codigoExterno: licitacion.codigoExterno,
-      nombre: licitacion.nombre,
-      descripcion: licitacion.descripcion,
-      nombreOrganismo: licitacion.nombreOrganismo,
-      montoEstimado: licitacion.montoEstimado ? Number(licitacion.montoEstimado) : null,
-      moneda: licitacion.moneda,
-      tipo: licitacion.tipo,
-      fechaPublicacion: licitacion.fechaPublicacion,
-      fechaCierre: licitacion.fechaCierre,
-      items: licitacion.items,
-    });
-  }
+      const faltantes = seleccion.ids.filter((id) => !items.some((i) => i.id === id));
+      if (faltantes.length > 0) {
+        throw new NotFoundError(`No existen las licitaciones ${faltantes.join(", ")}`, "LICITACION_NO_ENCONTRADA");
+      }
 
-  async analizarPendientes(): Promise<AnalisisPendientesResumen> {
+      return { items, omitidos: [], ctx: undefined, parametros: { modo: "IDS", ids: seleccion.ids } };
+    }
+
     const segmentos = await this.segmentosDelPerfil();
-    const pendientes = await this.analisisRepo.listarPendientesActivas(segmentos);
+    const items = await this.analisisRepo.listarPendientesActivas(segmentos);
 
     if (segmentos.length > 0) {
-      logger.info({ segmentos, pendientes: pendientes.length }, "Análisis acotado a los segmentos UNSPSC del perfil");
+      logger.info({ segmentos, pendientes: items.length }, "Análisis acotado a los segmentos UNSPSC del perfil");
     }
 
-    const resumen: AnalisisPendientesResumen = {
-      totalEncontradas: pendientes.length,
-      totalCompletadas: 0,
-      totalFallidas: 0,
-    };
-
-    for (const licitacion of pendientes) {
-      try {
-        await this.procesar(licitacion);
-        resumen.totalCompletadas++;
-      } catch (err) {
-        resumen.totalFallidas++;
-        logger.error({ err, codigoExterno: licitacion.codigoExterno }, "Análisis individual falló dentro del batch");
-      }
-    }
-
-    logger.info({ ...resumen }, "Batch de análisis de pendientes finalizado");
-    return resumen;
+    return { items, omitidos: [], ctx: undefined, parametros: { modo: "PENDIENTES", segmentos } };
   }
 
   /**
    * Segmentos UNSPSC declarados en el perfil. Sin perfil, o con un perfil sin categorías, devuelve
    * vacío y el batch procesa todo — el filtro nunca deja al sistema sin hacer nada.
    *
-   * Solo acota el batch: `analizarUna()` sigue analizando cualquier licitación que le pidas.
+   * Solo acota el batch de pendientes: analizar por ids sigue analizando lo que le pidas.
    */
   private async segmentosDelPerfil(): Promise<string[]> {
     const perfil = await this.perfilEmpresaRepo.obtener();
     return perfil ? segmentosDe(perfil.categoriasUnspsc) : [];
   }
 
-  private async procesar(licitacion: LicitacionParaProcesar | LicitacionPendiente) {
+  async procesar(licitacion: LicitacionPendiente, opts: OpcionesItem) {
     const inicio = Date.now();
     const prompt = buildAnalisisPrompt(licitacion);
 
     try {
-      const resultado = await this.ollamaClient.generarAnalisis(prompt);
+      const resultado = await this.ollamaClient.generarAnalisis(prompt, opts);
       const guardado = await this.analisisRepo.guardarCompletado({
         licitacionId: licitacion.id,
         resumenEjecutivo: resultado.resumenEjecutivo,
@@ -115,6 +81,11 @@ export class AnalisisLicitacionesService {
       );
       return guardado;
     } catch (err) {
+      // Una cancelación no es un fallo del modelo: la licitación tiene que volver a la cola de
+      // pendientes, no quedar marcada FALLIDA con un intento gastado y un detalleError que dice
+      // "aborted" — que es indistinguible de un problema real cuando lo mirás una semana después.
+      if (err instanceof ProcesoCanceladoError) throw err;
+
       await this.analisisRepo.guardarFallido({
         licitacionId: licitacion.id,
         modelo: config.OLLAMA_MODEL,

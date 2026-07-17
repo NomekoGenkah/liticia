@@ -252,12 +252,12 @@ export interface IngestaFiltrosInput {
   codigoProveedor?: string;
 }
 
+/**
+ * Estado de la ingesta, lo único que sigue con este contrato mínimo.
+ *
+ * Los procesos de IA usan el EstadoProceso de `types/procesos.ts`, con progreso y run: la ingesta
+ * no pasa por ahí porque no habla con el LLM, no se cancela y no tiene panel en vivo.
+ */
 export interface ProcesoEstado {
   enProceso: boolean;
-}
-
-export interface PendientesResumen {
-  totalEncontradas: number;
-  totalCompletadas: number;
-  totalFallidas: number;
 }

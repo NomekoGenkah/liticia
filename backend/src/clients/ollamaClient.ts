@@ -1,20 +1,41 @@
-import { Ollama } from "ollama";
+import { type AbortableAsyncIterator, type ChatResponse, Ollama } from "ollama";
 import { z } from "zod";
-import { OllamaApiError } from "../utils/errors";
+import { OllamaApiError, ProcesoCanceladoError } from "../utils/errors";
 import { withRetry } from "../utils/httpRetry";
 import type { AnalisisLlmResultado, MatchingLlmResultado } from "./ollamaClient.types";
 
 interface OllamaClientOptions {
   host: string;
   model: string;
+  /** Tope de pared de las llamadas sin streaming (embeddings, RAG). */
   timeoutMs: number;
   retryMax: number;
   retryBaseDelayMs: number;
   think: boolean;
+  /** Máximo hueco entre tokens en una generación con streaming. */
+  streamIdleTimeoutMs?: number;
+  /** Tope de pared del streaming, red de seguridad del watchdog de inactividad. */
+  streamHardCapMs?: number;
   /** Modelo de embeddings, distinto del de chat. Solo lo usa generarEmbedding(). */
   embedModel?: string;
   /** Ventana de contexto para generarRespuesta(). Ver el comentario de num_ctx más abajo. */
   ragNumCtx?: number;
+}
+
+/**
+ * De qué parte de la generación viene el texto. Los modelos con `think` emiten su razonamiento en
+ * un campo aparte del contenido, y mezclarlos le mostraría al usuario el borrador como si fuera la
+ * respuesta.
+ */
+export type CanalToken = "respuesta" | "pensamiento";
+
+export interface OpcionesGeneracion {
+  /** Cancelación externa. Aborta la request HTTP; el llamador recibe ProcesoCanceladoError. */
+  signal?: AbortSignal;
+  /** Se llama por chunk, sin agrupar: agrupar es política de transporte, no de este cliente. */
+  onToken?: (texto: string, canal: CanalToken) => void;
+  /** Se llama si un intento falla y se va a reintentar, para descartar la salida parcial del anterior. */
+  onReintento?: (intento: number) => void;
 }
 
 export interface AnalisisPrompt {
@@ -169,83 +190,147 @@ export class OllamaClient {
   private readonly client: Ollama;
 
   constructor(private readonly options: OllamaClientOptions) {
-    const timeoutFetch: typeof fetch = (input, init) =>
-      fetch(input, { ...init, signal: AbortSignal.timeout(options.timeoutMs) });
+    /**
+     * Compone los signals en vez de pisarlos, y de eso cuelga toda la cancelación.
+     *
+     * El paquete `ollama` crea un AbortController propio SOLO para las requests con stream:true
+     * (processStreamableRequest) y pasa su signal acá como `init.signal`; es lo único que hace que
+     * AbortableAsyncIterator.abort() llegue al socket. La versión anterior de este fetch lo
+     * descartaba, así que abortar no tenía ningún efecto.
+     *
+     * Y por lo mismo `init.signal` sirve de discriminador: si está, es una request con streaming.
+     * Ahí el timeout real es el watchdog de inactividad del loop y acá solo queda un tope de
+     * seguridad; sin él, es una llamada común y el tope de pared de siempre aplica tal cual.
+     */
+    const fetchConTimeout: typeof fetch = (input, init) => {
+      const esStream = init?.signal != null;
+      const timeout = AbortSignal.timeout(
+        esStream ? (options.streamHardCapMs ?? options.timeoutMs) : options.timeoutMs
+      );
+      const signal = init?.signal ? AbortSignal.any([timeout, init.signal]) : timeout;
+      return fetch(input, { ...init, signal });
+    };
 
-    this.client = new Ollama({ host: options.host, fetch: timeoutFetch });
+    this.client = new Ollama({ host: options.host, fetch: fetchConTimeout });
   }
 
-  async generarAnalisis(prompt: AnalisisPrompt): Promise<AnalisisLlmResultado> {
-    return withRetry(
-      async () => {
-        let response;
-        try {
-          response = await this.client.chat({
-            model: this.options.model,
-            messages: [
-              { role: "system", content: prompt.system },
-              { role: "user", content: prompt.user },
-            ],
-            format: ANALISIS_JSON_SCHEMA,
-            think: this.options.think,
-            stream: false,
-            options: { temperature: 0.2 },
-          });
-        } catch (err) {
-          throw new OllamaApiError(
-            `Falló la llamada a Ollama (${this.options.host}, modelo ${this.options.model}): ${
-              err instanceof Error ? err.message : String(err)
-            }`
-          );
-        }
+  /**
+   * Genera con streaming y devuelve el contenido completo acumulado.
+   *
+   * El streaming acá no es solo para mostrar el progreso: es el único camino por el que la
+   * cancelación puede existir (ver el comentario del constructor). Que el parseo siga recibiendo el
+   * string entero es deliberado — la salida solo es válida completa, y `format` (el JSON schema) se
+   * aplica en el sampler, así que sigue vigente token a token.
+   */
+  private async chatStreaming(
+    prompt: { system: string; user: string },
+    format: object,
+    opts: OpcionesGeneracion
+  ): Promise<string> {
+    // La cancelación externa no llega sola al iterador: el AbortController que la lib crea es suyo,
+    // y abort() es la única puerta para alcanzarlo.
+    let iterador: AbortableAsyncIterator<ChatResponse> | undefined;
+    const abortar = () => iterador?.abort();
 
-        return parseAnalisisResponse(response.message.content);
-      },
-      {
-        retries: this.options.retryMax,
-        baseDelayMs: this.options.retryBaseDelayMs,
-        context: "ollamaClient.generarAnalisis",
+    // Watchdog de inactividad. Reemplaza al tope de pared, que con streaming cortaría una
+    // generación que está saliendo bien solo por ser larga.
+    let watchdog: NodeJS.Timeout | undefined;
+    const patear = () => {
+      clearTimeout(watchdog);
+      watchdog = setTimeout(
+        () => abortar(),
+        this.options.streamIdleTimeoutMs ?? this.options.timeoutMs
+      );
+    };
+
+    let contenido = "";
+    try {
+      // La llamada va DENTRO del try: si Ollama no está levantado, el error tiene que salir como
+      // OllamaApiError igual que el resto, no crudo.
+      iterador = await this.client.chat({
+        model: this.options.model,
+        messages: [
+          { role: "system", content: prompt.system },
+          { role: "user", content: prompt.user },
+        ],
+        format,
+        think: this.options.think,
+        stream: true,
+        options: { temperature: 0.2 },
+      });
+
+      // El signal pudo abortarse mientras se establecía la conexión, cuando todavía no había
+      // iterador que abortar. Sin este chequeo, ese listener quedaría sin efecto y la generación
+      // correría entera pese a estar cancelada.
+      if (opts.signal?.aborted) throw new ProcesoCanceladoError();
+      opts.signal?.addEventListener("abort", abortar, { once: true });
+
+      patear();
+      for await (const chunk of iterador) {
+        patear();
+        if (chunk.message.thinking) opts.onToken?.(chunk.message.thinking, "pensamiento");
+        if (chunk.message.content) {
+          contenido += chunk.message.content;
+          opts.onToken?.(chunk.message.content, "respuesta");
+        }
       }
+
+      // Un abort puede cortar el iterador en el borde de un chunk, y ahí el for-await termina
+      // limpio en vez de lanzar. Sin este chequeo devolveríamos el contenido parcial, el parseo
+      // fallaría por JSON incompleto, y withRetry reintentaría lo que el usuario acaba de cancelar.
+      if (opts.signal?.aborted) throw new ProcesoCanceladoError();
+
+      return contenido;
+    } catch (err) {
+      // Se traduce por el estado del signal, no olfateando el error: iterador.abort() produce un
+      // AbortError idéntico al del watchdog, así que el error en sí no distingue "canceló el
+      // usuario" de "Ollama se colgó". Cubre también el ProcesoCanceladoError de más arriba.
+      if (opts.signal?.aborted) throw new ProcesoCanceladoError();
+      throw new OllamaApiError(
+        `Falló la llamada a Ollama (${this.options.host}, modelo ${this.options.model}): ${
+          err instanceof Error ? err.message : String(err)
+        }`
+      );
+    } finally {
+      clearTimeout(watchdog);
+      opts.signal?.removeEventListener("abort", abortar);
+    }
+  }
+
+  /** Reintentar lo que el usuario acaba de cancelar es exactamente lo contrario de cancelar. */
+  private opcionesRetry(context: string, opts: OpcionesGeneracion) {
+    return {
+      retries: this.options.retryMax,
+      baseDelayMs: this.options.retryBaseDelayMs,
+      context,
+      esRetryable: (err: unknown) => !(err instanceof ProcesoCanceladoError),
+      onReintento: opts.onReintento,
+    };
+  }
+
+  async generarAnalisis(prompt: AnalisisPrompt, opts: OpcionesGeneracion = {}): Promise<AnalisisLlmResultado> {
+    return withRetry(
+      async () => parseAnalisisResponse(await this.chatStreaming(prompt, ANALISIS_JSON_SCHEMA, opts)),
+      this.opcionesRetry("ollamaClient.generarAnalisis", opts)
     );
   }
 
-  async generarMatching(prompt: MatchingPrompt): Promise<MatchingLlmResultado> {
+  async generarMatching(prompt: MatchingPrompt, opts: OpcionesGeneracion = {}): Promise<MatchingLlmResultado> {
     return withRetry(
-      async () => {
-        let response;
-        try {
-          response = await this.client.chat({
-            model: this.options.model,
-            messages: [
-              { role: "system", content: prompt.system },
-              { role: "user", content: prompt.user },
-            ],
-            format: MATCHING_JSON_SCHEMA,
-            think: this.options.think,
-            stream: false,
-            options: { temperature: 0.2 },
-          });
-        } catch (err) {
-          throw new OllamaApiError(
-            `Falló la llamada a Ollama (${this.options.host}, modelo ${this.options.model}): ${
-              err instanceof Error ? err.message : String(err)
-            }`
-          );
-        }
-
-        return parseMatchingResponse(response.message.content);
-      },
-      {
-        retries: this.options.retryMax,
-        baseDelayMs: this.options.retryBaseDelayMs,
-        context: "ollamaClient.generarMatching",
-      }
+      async () => parseMatchingResponse(await this.chatStreaming(prompt, MATCHING_JSON_SCHEMA, opts)),
+      this.opcionesRetry("ollamaClient.generarMatching", opts)
     );
   }
 
   /**
    * Embebe varios textos en una sola llamada. El llamador decide el tamaño del lote; acá no hay
    * política de sub-lotes, solo la llamada.
+   *
+   * Sin `signal`, a diferencia de generarAnalisis/generarMatching: `embed` de la lib no acepta uno
+   * (no es streamable, así que nunca crea un AbortController), y un parámetro que no puede cancelar
+   * nada es peor que no tenerlo. La cancelación de un batch de embeddings corta entre documentos,
+   * no en medio de uno — que alcanza, porque un embed son segundos y no la generación de minutos
+   * que sí hay que poder interrumpir.
    */
   async generarEmbedding(textos: string[]): Promise<number[][]> {
     const model = this.options.embedModel;

@@ -10,11 +10,12 @@ Revisar manualmente cientos de licitaciones publicadas cada día para encontrar 
 
 - **Ingesta de licitaciones**: trae licitaciones desde la API pública de ChileCompra por fecha/estado/organismo/proveedor, con deduplicación por `codigoExterno`, reintentos con backoff y control del límite diario de requests del ticket. Ejecutable manualmente o por scheduler (cron o intervalo, configurable).
 - **Análisis con IA**: para cada licitación, un LLM local (Ollama) genera un resumen ejecutivo, puntos clave, palabras clave y un nivel de complejidad.
+- **Procesos de IA en vivo**: al disparar un análisis, matching o indexado, un panel muestra el progreso real — cuántas van, cuál se está procesando, cuánto falta, y el texto que el modelo va escribiendo a medida que sale. Se pueden cancelar en cualquier momento (corta al toque; la licitación en curso vuelve a la cola sin marcarse como fallida), elegir cuáles se mandan (tildándolas en el listado o destildándolas en la vista previa), y cada corrida queda en un historial con qué pasó con cada licitación.
 - **Perfil de empresa + matching con IA**: declarás un único perfil (rubro, palabras clave, categorías UNSPSC, regiones, rango de monto — soporta tanto empresa como persona natural) y el sistema calcula, por licitación, un puntaje 0-100, una recomendación (Sí / No / Tal vez) y su justificación.
 - **Documentos**: subís manualmente los anexos de una licitación (PDF, DOCX o XLSX, hasta 20MB) y LicitIA les extrae el texto al momento. La descarga automática desde mercadopublico.cl no es posible (ver la decisión de arquitectura en `PLAN.md`), así que los bajás vos desde la ficha pública y los cargás acá.
 - **Preguntas sobre los documentos (RAG)**: una vez indexados, podés preguntarle en lenguaje natural a los documentos de una licitación ("¿cuál es el plazo de entrega?", "¿qué garantías piden?"). Las respuestas salen únicamente de los documentos cargados y vienen con los fragmentos exactos que las respaldan, con su archivo de origen y similitud.
 - **Panel**: la pantalla de inicio responde "¿qué miro hoy?" — cuántas cierran en 48 horas y esta semana, un horizonte de los cierres de los próximos 14 días (donde se ven los días en que se apelotonan), las que cierran primero y cuánto avanzó la IA.
-- **Frontend web**: listado de licitaciones con filtros y orden (incluye filtrar/ordenar por recomendación de matching), detalle completo por licitación con disparo manual de análisis/matching, carga de documentos y chat sobre ellos, gestión del perfil de empresa, y una pantalla de "Procesos" para disparar ingesta y los batches de IA con seguimiento de su estado. Tema claro/oscuro y selector de tipografía (engranaje del header), guardados en el navegador.
+- **Frontend web**: listado de licitaciones con filtros, orden y selección múltiple (para mandar a analizar/matchear solo lo que elijas), detalle completo por licitación con disparo manual de análisis/matching, carga de documentos y chat sobre ellos, gestión del perfil de empresa, y una pantalla de "Procesos" para disparar ingesta y los procesos de IA, verlos correr en vivo y revisar el historial. Tema claro/oscuro y selector de tipografía (engranaje del header), guardados en el navegador.
 - **API REST** documentada de forma implícita por las rutas en `backend/src/routes/` — listado y detalle de licitaciones, ingesta, análisis, matching, perfil de empresa, documentos y preguntas.
 
 ## Arquitectura
@@ -146,8 +147,8 @@ npm run dev               # http://localhost:5173, proxy /api → localhost:3000
 | `npm run dev` | Servidor en modo watch |
 | `npm run build` / `npm start` | Build de producción y arranque |
 | `npm run ingest` | Corre la ingesta de licitaciones por CLI (forma síncrona) |
-| `npm run analyze` | Corre el batch de análisis IA de pendientes por CLI |
-| `npm run match` | Corre el batch de matching IA de pendientes por CLI |
+| `npm run analyze` | Corre el análisis IA de pendientes por CLI (Ctrl+C lo cancela y cierra la corrida) |
+| `npm run match` | Corre el matching IA de pendientes por CLI |
 | `npm run embed` | Indexa los documentos con texto extraído que aún no tienen fragmentos |
 | `npm test` | Suite de tests (Vitest) |
 | `npm run typecheck` | Chequeo de tipos sin emitir |
@@ -166,6 +167,8 @@ Ver `.env.example` para la lista completa con comentarios. Para que un cambio to
 
 - `CHILECOMPRA_TICKET` / `CHILECOMPRA_API_BASE`: credenciales y base URL de la API de ChileCompra.
 - `OLLAMA_URL` / `OLLAMA_MODEL`: dónde está Ollama y qué modelo usar para análisis, matching y respuestas.
+- `OLLAMA_STREAM_IDLE_TIMEOUT_MS` (default 60s): máximo hueco tolerado **entre tokens** en análisis y matching, que van con streaming. Detecta un Ollama colgado sin cortar una generación que está saliendo bien: mientras el modelo escriba, sigue por más que tarde. `OLLAMA_STREAM_HARD_CAP_MS` (default 10min) es la red de seguridad. `OLLAMA_REQUEST_TIMEOUT_MS` (default 60s) sigue siendo el tope de pared, pero solo de las llamadas sin streaming: embeddings y respuestas del RAG.
+- `OLLAMA_THINK` (default `false`): con `true`, los modelos híbridos como qwen3 razonan antes de responder y ese razonamiento se ve en vivo en el panel de Procesos, en un canal aparte de la respuesta. Cuesta tokens (y tiempo) en cada licitación.
 - `OLLAMA_EMBED_MODEL`: modelo de embeddings del RAG (default `nomic-embed-text`). Debe ser de 768 dimensiones — la columna `vector(768)` lo asume, y cambiarlo obliga a re-indexar los documentos.
 - `OLLAMA_RAG_NUM_CTX` / `RAG_TOP_K`: ventana de contexto y cuántos fragmentos se le pasan al modelo en cada pregunta. Subir `RAG_TOP_K` sin subir `OLLAMA_RAG_NUM_CTX` hace que Ollama trunque el prompt en silencio.
 - `CHILECOMPRA_MAX_REQUESTS_DIA`: tope propio de requests diarias a ChileCompra (default 10.000, que es el límite real del ticket y no es modificable). Al alcanzarlo, la ingesta corta con un 429 `LIMITE_LOCAL_REQUESTS` — es tu guardarraíl, no un rechazo de ChileCompra. El contador se reinicia cada día y `GET /api/health` muestra cómo va.
