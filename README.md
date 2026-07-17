@@ -139,4 +139,5 @@ backend/     API REST + jobs (Express, Prisma, Ollama, ChileCompra)
 frontend/    Interfaz web (React, Vite, shadcn/ui)
 storage/     Logs y documentos subidos, fuera de git
 PLAN.md      Plan por fases y decisiones de arquitectura
+ROADMAP.md   Pendientes de mantenimiento (tests del front, CI, pasar el código a inglés)
 ```
