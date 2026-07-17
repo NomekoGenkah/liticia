@@ -154,3 +154,7 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on every push to `main` and on 
 - **frontend**: `npm ci` → `npm run build` (includes `tsc -b`) → `npm run lint` → `npm test`
 
 No Postgres or Ollama is needed: the tests mock the repositories and the Ollama client.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
