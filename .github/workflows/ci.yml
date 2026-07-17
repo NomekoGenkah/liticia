@@ -1,0 +1,51 @@
+name: CI
+
+# Corre en cada push a main y en cada PR. Es el gate que faltaba: el build del frontend estuvo roto
+# en main sin que nadie se enterara (ver ROADMAP.md).
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancela corridas viejas del mismo ref cuando llega un push nuevo.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      # Sin el Client generado el backend no compila: va antes del typecheck.
+      - run: npx prisma generate
+      - run: npm run typecheck
+      # No hace falta Postgres: los 144 tests mockean los repositorios. Ollama tampoco: se mockea.
+      - run: npm test
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      # build ya incluye `tsc -b`, así que typechea de paso.
+      - run: npm run build
+      - run: npm run lint
+      - run: npm test
