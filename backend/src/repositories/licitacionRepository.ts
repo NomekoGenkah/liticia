@@ -131,7 +131,7 @@ export const licitacionRepository = {
 
     const prismaOrderBy: Prisma.LicitacionOrderByWithRelationInput =
       orderBy.field === "puntaje"
-        ? { matching: { puntaje: orderBy.direction } }
+        ? { matching: { puntaje: { sort: orderBy.direction, nulls: "last" } } }
         : { [orderBy.field]: orderBy.direction };
 
     const [data, total] = await prisma.$transaction([
