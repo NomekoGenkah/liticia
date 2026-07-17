@@ -51,7 +51,7 @@ Ver `PLAN.md` para el detalle de cada fase implementada y las decisiones de arqu
 2. Completar en `.env` al menos `CHILECOMPRA_TICKET` con tu ticket real, y revisar `OLLAMA_MODEL` si vas a usar un modelo distinto a `qwen3:8b`.
 3. Levantar Postgres, backend y frontend:
    ```
-   docker compose up -d
+   docker compose up -d --build --renew-anon-volumes
    ```
 4. Aplicar las migraciones de base de datos (una sola vez, o cada vez que haya migraciones nuevas):
    ```
@@ -60,6 +60,54 @@ Ver `PLAN.md` para el detalle de cada fase implementada y las decisiones de arqu
 5. Abrir el frontend en [http://localhost:5173](http://localhost:5173). La API queda disponible en [http://localhost:3000/api](http://localhost:3000/api).
 
 Desde ahí, el flujo típico es: entrar a **Procesos** y ejecutar una ingesta manual, luego disparar el análisis y el matching de pendientes (o configurar el perfil de empresa primero en **Perfil de empresa**, si todavía no existe). Para preguntarle a los documentos de una licitación: subirlos en su detalle, generar los embeddings en **Procesos → Embeddings de documentos**, y usar la caja de preguntas que aparece en el detalle.
+
+## Trabajar con Docker
+
+### El comando de todos los días
+
+```
+docker compose up -d --build --renew-anon-volumes
+```
+
+Usá este por defecto. Es el único que garantiza que lo que corre adentro coincide con lo que hay en el repo, porque hace las dos cosas que hacen falta:
+
+- `--build` reconstruye las imágenes. Sin esto, Compose reusa la imagen que ya existe y el `npm install` del Dockerfile nunca se vuelve a ejecutar.
+- `--renew-anon-volumes` descarta los `node_modules` de los contenedores. Los servicios montan `/app/node_modules` como volumen anónimo (ver `docker-compose.yml`), y Compose los conserva al recrear un contenedor, así que el `node_modules` viejo tapa el de la imagen nueva.
+
+**Las dos son necesarias juntas.** Cada una sola no alcanza: `--build` deja el volumen viejo tapando la imagen nueva, y `--renew-anon-volumes` repuebla el volumen desde una imagen desactualizada. Por eso, si agregás una dependencia al `package.json` y levantás con `docker compose up -d` a secas, no se instala y el servicio explota con un error de módulo no encontrado (`Can't resolve '<paquete>'`) que no tiene nada que ver con tu código.
+
+`--renew-anon-volumes` **no toca la base de datos**: solo recrea volúmenes *anónimos*, y `pgdata` es un volumen *nombrado*. Se parece a `-v`, pero no tiene nada que ver — ver el aviso de abajo.
+
+### Variantes
+
+| Si querés… | Comando |
+|---|---|
+| Arrancar sin reconstruir, más rápido (solo si no tocaste `package.json` ni los `Dockerfile`) | `docker compose up -d` |
+| Aplicar un cambio del `.env` | `docker compose up -d --force-recreate backend` |
+| Operar un solo servicio | Agregar su nombre al final: `docker compose up -d --build --renew-anon-volumes frontend` |
+| Ver por qué algo falla | `docker compose logs -f backend` |
+| Parar todo, conservando los datos | `docker compose down` |
+
+### Nunca uses `docker compose down -v`
+
+La bandera `-v` borra los volúmenes **con nombre**, y ahí vive `pgdata`: te llevás puestas las licitaciones ingestadas, los análisis, el matching, los documentos y sus embeddings. Recuperarlos significa re-ingestar desde ChileCompra y volver a correr toda la IA. `docker compose down` a secas para todo el stack sin borrar nada.
+
+Cuidado con la confusión de banderas, que es fácil y cara:
+
+- `-v` / `--volumes` → borra volúmenes nombrados → **destruye la base de datos**.
+- `-V` / `--renew-anon-volumes` → solo volúmenes anónimos (`node_modules`) → **seguro**, es el del comando de arriba.
+
+### Aplicar un cambio del `.env`
+
+Con Docker no basta `docker compose restart backend`: el `.env` se inyecta vía `env_file` **al crear** el contenedor, así que un restart reinicia el proceso pero conserva las variables viejas. Hay que recrearlo:
+
+```
+docker compose up -d --force-recreate backend
+```
+
+Es fácil de pasar por alto porque no falla: el backend arranca bien y sigue usando el valor anterior. Si cambiaste algo y no ves el efecto, empieza por acá — `GET /api/health` te dice qué tope tiene cargado de verdad.
+
+Corriendo fuera de Docker (`npm run dev`) no aplica: ahí el backend lee el `.env` de la raíz con dotenv en cada arranque, así que basta con reiniciar el proceso.
 
 ### Si ya tenías LicitIA corriendo de antes
 
@@ -114,7 +162,7 @@ npm run dev               # http://localhost:5173, proxy /api → localhost:3000
 
 ## Variables de entorno
 
-Ver `.env.example` para la lista completa con comentarios. Las más relevantes para arrancar:
+Ver `.env.example` para la lista completa con comentarios. Para que un cambio tome efecto con Docker, ver [Aplicar un cambio del `.env`](#aplicar-un-cambio-del-env). Las más relevantes para arrancar:
 
 - `CHILECOMPRA_TICKET` / `CHILECOMPRA_API_BASE`: credenciales y base URL de la API de ChileCompra.
 - `OLLAMA_URL` / `OLLAMA_MODEL`: dónde está Ollama y qué modelo usar para análisis, matching y respuestas.
@@ -123,18 +171,6 @@ Ver `.env.example` para la lista completa con comentarios. Las más relevantes p
 - `CHILECOMPRA_MAX_REQUESTS_DIA`: tope propio de requests diarias a ChileCompra (default 10.000, que es el límite real del ticket y no es modificable). Al alcanzarlo, la ingesta corta con un 429 `LIMITE_LOCAL_REQUESTS` — es tu guardarraíl, no un rechazo de ChileCompra. El contador se reinicia cada día y `GET /api/health` muestra cómo va.
 - `SCHEDULE_MODE` / `SCHEDULE_VALUE`: modo del scheduler de ingesta automática (`cron` con expresión de 5 campos, o `interval` en milisegundos).
 - `DATABASE_URL` / `POSTGRES_*`: conexión a Postgres.
-
-### Aplicar un cambio del `.env`
-
-Con Docker no basta `docker compose restart backend`: el `.env` se inyecta vía `env_file` **al crear** el contenedor, así que un restart reinicia el proceso pero conserva las variables viejas. Hay que recrearlo:
-
-```
-docker compose up -d --force-recreate backend
-```
-
-Es fácil de pasar por alto porque no falla: el backend arranca bien y sigue usando el valor anterior. Si cambiaste algo y no ves el efecto, empieza por acá — `GET /api/health` te dice qué tope tiene cargado de verdad.
-
-Corriendo fuera de Docker (`npm run dev`) no aplica: ahí el backend lee el `.env` de la raíz con dotenv en cada arranque, así que basta con reiniciar el proceso.
 
 ## Estructura del repo
 
