@@ -70,7 +70,7 @@ export const procesoRunRepository = {
     });
   },
 
-  async cerrarItem(
+  async closeItem(
     runId: string,
     orden: number,
     datos: { estado: ProcesoItemEstado; duracionMs: number; detalleError: string | null }
@@ -81,7 +81,7 @@ export const procesoRunRepository = {
     });
   },
 
-  async cerrar(
+  async close(
     runId: string,
     datos: ResumenProceso & { estado: ProcesoRunEstado; detalleError: string | null }
   ) {

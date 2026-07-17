@@ -73,7 +73,7 @@ export class ProcesoRunner<TItem, TCtx> {
     seleccion: SeleccionProceso,
     disparadoPor: ProcesoDisparador
   ): Promise<{ runId: string; totalEncontradas: number }> {
-    const { runId, totalEncontradas, correr } = await this.arrancar(seleccion, disparadoPor);
+    const { runId, totalEncontradas, correr } = await this.start(seleccion, disparadoPor);
 
     void correr().catch((err) => logger.error({ err, runId }, "El loop del run falló de forma inesperada"));
 
@@ -82,7 +82,7 @@ export class ProcesoRunner<TItem, TCtx> {
 
   /** Ejecuta el run y espera a que termine. Para el CLI. */
   async ejecutar(seleccion: SeleccionProceso, disparadoPor: ProcesoDisparador): Promise<ResumenProceso> {
-    const { correr } = await this.arrancar(seleccion, disparadoPor);
+    const { correr } = await this.start(seleccion, disparadoPor);
     return correr();
   }
 
@@ -95,7 +95,7 @@ export class ProcesoRunner<TItem, TCtx> {
     return this.vivo.id;
   }
 
-  private async arrancar(seleccion: SeleccionProceso, disparadoPor: ProcesoDisparador) {
+  private async start(seleccion: SeleccionProceso, disparadoPor: ProcesoDisparador) {
     if (this.enProceso) {
       throw new ConflictError(
         `Ya hay un proceso de ${this.def.tipo} en curso, espera a que termine antes de disparar otro`,
@@ -222,7 +222,7 @@ export class ProcesoRunner<TItem, TCtx> {
           if (resultado === "OMITIDO") vivo.omitidos++;
           else vivo.completadas++;
 
-          await this.runRepo.cerrarItem(runId, indice, {
+          await this.runRepo.closeItem(runId, indice, {
             estado: resultado,
             duracionMs: Date.now() - inicio,
             detalleError: null,
@@ -231,7 +231,7 @@ export class ProcesoRunner<TItem, TCtx> {
         } catch (err) {
           if (err instanceof ProcesoCanceladoError) {
             // La licitación vuelve a la cola: procesar() no persistió nada para ella.
-            await this.runRepo.cerrarItem(runId, indice, {
+            await this.runRepo.closeItem(runId, indice, {
               estado: "CANCELADO",
               duracionMs: Date.now() - inicio,
               detalleError: null,
@@ -243,7 +243,7 @@ export class ProcesoRunner<TItem, TCtx> {
 
           vivo.fallidas++;
           const mensaje = err instanceof Error ? err.message : String(err);
-          await this.runRepo.cerrarItem(runId, indice, {
+          await this.runRepo.closeItem(runId, indice, {
             estado: "FALLIDO",
             duracionMs: Date.now() - inicio,
             detalleError: mensaje,
@@ -267,7 +267,7 @@ export class ProcesoRunner<TItem, TCtx> {
 
       // Aislado: un error de base acá no puede dejar el lock tomado para siempre.
       try {
-        await this.runRepo.cerrar(runId, { ...this.resumen(), estado: estadoFinal, detalleError });
+        await this.runRepo.close(runId, { ...this.resumen(), estado: estadoFinal, detalleError });
         if (estadoFinal !== "COMPLETADO") await this.runRepo.cancelarItemsPendientes(runId);
       } catch (err) {
         logger.error({ err, runId }, "No se pudo cerrar el ProcesoRun en la base");

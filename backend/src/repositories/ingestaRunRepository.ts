@@ -7,7 +7,7 @@ export const ingestaRunRepository = {
     return prisma.ingestaRun.create({ data: { parametros, disparadoPor } });
   },
 
-  async cerrar(
+  async close(
     id: string,
     resumen: {
       totalEncontradas: number;

@@ -41,8 +41,8 @@ function crearMocks(overrides: Partial<DefinicionProceso<ItemFalso, void>> = {})
   const runRepo = {
     crear: vi.fn(async () => ({ id: "run-1", fechaInicio: new Date("2026-07-16T12:00:00Z") })),
     marcarItemEnProceso: vi.fn(async () => ({})),
-    cerrarItem: vi.fn(async () => ({})),
-    cerrar: vi.fn(async () => ({})),
+    closeItem: vi.fn(async () => ({})),
+    close: vi.fn(async () => ({})),
     cancelarItemsPendientes: vi.fn(async () => ({ count: 0 })),
     hayRunActivo: vi.fn(async () => false),
   } as unknown as typeof procesoRunRepository;
@@ -173,7 +173,7 @@ describe("ProcesoRunner", () => {
 
       await runner.ejecutar({ modo: "PENDIENTES" }, "MANUAL");
 
-      expect(runRepo.cerrar).toHaveBeenCalledWith(
+      expect(runRepo.close).toHaveBeenCalledWith(
         "run-1",
         expect.objectContaining({ estado: "COMPLETADO", totalCompletadas: 2, detalleError: null })
       );
@@ -185,7 +185,7 @@ describe("ProcesoRunner", () => {
 
       const resumen = await runner.ejecutar({ modo: "PENDIENTES" }, "MANUAL");
 
-      expect(runRepo.cerrar).toHaveBeenCalledWith(
+      expect(runRepo.close).toHaveBeenCalledWith(
         "run-1",
         expect.objectContaining({ estado: "FALLIDO", detalleError: "base caída" })
       );
@@ -194,7 +194,7 @@ describe("ProcesoRunner", () => {
 
     it("no deja el lock tomado si falla el cierre en la base", async () => {
       const { runner, runRepo } = crearMocks();
-      vi.mocked(runRepo.cerrar).mockRejectedValueOnce(new Error("base caída"));
+      vi.mocked(runRepo.close).mockRejectedValueOnce(new Error("base caída"));
 
       await runner.ejecutar({ modo: "PENDIENTES" }, "MANUAL");
 
@@ -223,12 +223,12 @@ describe("ProcesoRunner", () => {
       // Lo esencial: el ítem cancelado NO cuenta como fallido, y los otros dos ni se tocan.
       expect(procesar).toHaveBeenCalledTimes(1);
       expect(resumen).toMatchObject({ totalCompletadas: 0, totalFallidas: 0 });
-      expect(runRepo.cerrarItem).toHaveBeenCalledWith(
+      expect(runRepo.closeItem).toHaveBeenCalledWith(
         "run-1",
         0,
         expect.objectContaining({ estado: "CANCELADO", detalleError: null })
       );
-      expect(runRepo.cerrar).toHaveBeenCalledWith("run-1", expect.objectContaining({ estado: "CANCELADO" }));
+      expect(runRepo.close).toHaveBeenCalledWith("run-1", expect.objectContaining({ estado: "CANCELADO" }));
       expect(runRepo.cancelarItemsPendientes).toHaveBeenCalledWith("run-1");
     });
 

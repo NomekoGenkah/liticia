@@ -114,11 +114,11 @@ export class IngestaLicitacionesService {
         }
       }
 
-      await this.ingestaRunRepo.cerrar(run.id, { ...resumen, estado: "COMPLETADO" });
+      await this.ingestaRunRepo.close(run.id, { ...resumen, estado: "COMPLETADO" });
       logger.info({ ingestaRunId: run.id, ...resumen, duracionMs: Date.now() - inicio }, "Ingesta completada");
       return resumen;
     } catch (err) {
-      await this.ingestaRunRepo.cerrar(run.id, {
+      await this.ingestaRunRepo.close(run.id, {
         ...resumen,
         estado: "FALLIDO",
         detalleError: err instanceof Error ? err.message : String(err),
