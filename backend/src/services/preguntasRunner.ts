@@ -3,6 +3,7 @@ import { config } from "../config/env";
 import { documentoChunkRepository } from "../repositories/documentoChunkRepository";
 import { licitacionRepository } from "../repositories/licitacionRepository";
 import { preguntaLicitacionRepository } from "../repositories/preguntaLicitacionRepository";
+import { configuracionIaService } from "./configuracionIaService";
 import { PreguntasLicitacionService } from "./preguntasLicitacionService";
 
 let servicio: PreguntasLicitacionService | undefined;
@@ -11,7 +12,9 @@ function getPreguntasService(): PreguntasLicitacionService {
   if (!servicio) {
     const client = new OllamaClient({
       host: config.OLLAMA_URL,
-      model: config.OLLAMA_MODEL,
+      // Thunk: el RAG usa el modelo de chat elegido en Ajustes, resuelto en cada pregunta. El
+      // modelo de embeddings sigue fijo (embedModel), atado a la columna vector(768).
+      model: () => configuracionIaService.modeloChatActivo(),
       embedModel: config.OLLAMA_EMBED_MODEL,
       // Timeout propio: el prompt de RAG lleva miles de tokens de contexto y el prompt eval solo
       // puede tardar más que el timeout de análisis/matching.

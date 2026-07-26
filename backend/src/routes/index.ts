@@ -5,6 +5,7 @@ import { ingestaRouter } from "./ingesta.routes";
 import { perfilEmpresaRouter } from "./perfilEmpresa.routes";
 import { estadisticasRouter } from "./estadisticas.routes";
 import { procesosRouter } from "./procesos.routes";
+import { configuracionIaRouter } from "./configuracionIa.routes";
 
 export const apiRouter = Router();
 
@@ -16,3 +17,4 @@ apiRouter.use("/ingesta", ingestaRouter);
 apiRouter.use("/procesos", procesosRouter);
 apiRouter.use("/perfil-empresa", perfilEmpresaRouter);
 apiRouter.use("/estadisticas", estadisticasRouter);
+apiRouter.use("/config-ia", configuracionIaRouter);

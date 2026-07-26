@@ -1,4 +1,4 @@
-import type { OllamaClient } from "../clients/ollamaClient";
+import type { ChatLlmClient } from "../clients/chatLlmClient";
 import { config } from "../config/env";
 import { logger } from "../config/logger";
 import type {
@@ -13,7 +13,7 @@ import { buildAnalisisPrompt, PROMPT_VERSION } from "./analisisPrompt";
 
 export class AnalisisLicitacionesService {
   constructor(
-    private readonly ollamaClient: OllamaClient,
+    private readonly ollamaClient: ChatLlmClient,
     private readonly analisisRepo: typeof analisisLicitacionRepository,
     /**
      * El análisis en sí no sabe nada del perfil (sigue siendo una descripción neutra de la

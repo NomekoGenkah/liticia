@@ -10,6 +10,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ModeloIaSection } from "@/components/ajustes/ModeloIaSection";
 import { useFuente } from "@/hooks/useFuente";
 import { FUENTES } from "@/lib/fuentes";
 import { cn } from "@/lib/utils";
@@ -39,62 +41,77 @@ export function AjustesDialog() {
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Ajustes</DialogTitle>
-          <DialogDescription>Se guardan en este navegador.</DialogDescription>
+          <DialogDescription>
+            Apariencia se guarda en este navegador; el modelo de IA en el servidor.
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-6">
-          <section className="flex flex-col gap-2">
-            <h3 className="text-sm font-medium">Tema</h3>
-            <div className="grid grid-cols-3 gap-2">
-              {TEMAS.map((opcion) => (
-                <button
-                  key={opcion.value}
-                  type="button"
-                  onClick={() => setTheme(opcion.value)}
-                  className={cn(
-                    "rounded-md border px-3 py-2 text-sm transition-colors hover:bg-muted",
-                    montado && theme === opcion.value
-                      ? "border-foreground/40 bg-muted font-medium"
-                      : "border-border text-muted-foreground"
-                  )}
-                >
-                  {opcion.label}
-                </button>
-              ))}
-            </div>
-          </section>
+        <Tabs defaultValue="apariencia">
+          <TabsList className="w-full">
+            <TabsTrigger value="apariencia">Apariencia</TabsTrigger>
+            <TabsTrigger value="modelo-ia">Modelo de IA</TabsTrigger>
+          </TabsList>
 
-          <section className="flex flex-col gap-2">
-            <h3 className="text-sm font-medium">Fuente</h3>
-            <div className="flex flex-col gap-1">
-              {FUENTES.map((opcion) => {
-                const activa = fuente === opcion.id;
+          <TabsContent value="apariencia" className="max-h-[70vh] overflow-y-auto pt-2">
+            <div className="flex flex-col gap-6">
+              <section className="flex flex-col gap-2">
+                <h3 className="text-sm font-medium">Tema</h3>
+                <div className="grid grid-cols-3 gap-2">
+                  {TEMAS.map((opcion) => (
+                    <button
+                      key={opcion.value}
+                      type="button"
+                      onClick={() => setTheme(opcion.value)}
+                      className={cn(
+                        "rounded-md border px-3 py-2 text-sm transition-colors hover:bg-muted",
+                        montado && theme === opcion.value
+                          ? "border-foreground/40 bg-muted font-medium"
+                          : "border-border text-muted-foreground"
+                      )}
+                    >
+                      {opcion.label}
+                    </button>
+                  ))}
+                </div>
+              </section>
 
-                return (
-                  <button
-                    key={opcion.id}
-                    type="button"
-                    onClick={() => cambiarFuente(opcion.id)}
-                    aria-pressed={activa}
-                    className={cn(
-                      "flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-left transition-colors hover:bg-muted",
-                      activa ? "border-foreground/40 bg-muted" : "border-transparent"
-                    )}
-                  >
-                    <span className="flex flex-col gap-0.5">
-                      {/* Cada opción se muestra en su propia fuente: se elige viendo, no leyendo. */}
-                      <span className="text-sm" style={{ fontFamily: opcion.stack }}>
-                        {opcion.nombre} — Licitación 1234-5-LE26
-                      </span>
-                      <span className="text-xs text-muted-foreground">{opcion.razon}</span>
-                    </span>
-                    {activa && <CheckIcon className="size-4 shrink-0" />}
-                  </button>
-                );
-              })}
+              <section className="flex flex-col gap-2">
+                <h3 className="text-sm font-medium">Fuente</h3>
+                <div className="flex flex-col gap-1">
+                  {FUENTES.map((opcion) => {
+                    const activa = fuente === opcion.id;
+
+                    return (
+                      <button
+                        key={opcion.id}
+                        type="button"
+                        onClick={() => cambiarFuente(opcion.id)}
+                        aria-pressed={activa}
+                        className={cn(
+                          "flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-left transition-colors hover:bg-muted",
+                          activa ? "border-foreground/40 bg-muted" : "border-transparent"
+                        )}
+                      >
+                        <span className="flex flex-col gap-0.5">
+                          {/* Cada opción se muestra en su propia fuente: se elige viendo, no leyendo. */}
+                          <span className="text-sm" style={{ fontFamily: opcion.stack }}>
+                            {opcion.nombre} — Licitación 1234-5-LE26
+                          </span>
+                          <span className="text-xs text-muted-foreground">{opcion.razon}</span>
+                        </span>
+                        {activa && <CheckIcon className="size-4 shrink-0" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
             </div>
-          </section>
-        </div>
+          </TabsContent>
+
+          <TabsContent value="modelo-ia" className="max-h-[70vh] overflow-y-auto pt-2">
+            <ModeloIaSection />
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );

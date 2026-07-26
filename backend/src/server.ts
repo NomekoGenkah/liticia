@@ -5,6 +5,7 @@ import { prisma } from "./config/prisma";
 import { iniciarScheduler } from "./jobs/scheduler";
 import { ingestaRunRepository } from "./repositories/ingestaRunRepository";
 import { procesoRunRepository } from "./repositories/procesoRunRepository";
+import { configuracionIaService } from "./services/configuracionIaService";
 
 /**
  * Una corrida EN_PROCESO en la base cuando el servidor recién arranca solo puede significar que el
@@ -40,6 +41,10 @@ async function limpiarRunsHuerfanos() {
 
 async function main() {
   await limpiarRunsHuerfanos();
+
+  // Carga el modelo de chat elegido al caché en memoria, para que el thunk síncrono que consume
+  // OllamaClient devuelva lo persistido desde el primer request tras un reinicio (no el default).
+  await configuracionIaService.primeCache();
 
   const app = createApp();
 

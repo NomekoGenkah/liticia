@@ -261,6 +261,28 @@ model PerfilEmpresa {
   creadoEn      DateTime @default(now())
 }
 
+enum ProveedorIA {
+  OLLAMA
+  CLOUD
+}
+
+/// Configuración de IA de la app (fila única, como PerfilEmpresa). Editable desde Ajustes.
+model ConfiguracionIA {
+  id        String      @id @default(uuid())
+  proveedor ProveedorIA @default(OLLAMA)
+
+  /// Modelo de chat elegido. null ⇒ cae al default de entorno (OLLAMA_MODEL).
+  modeloChat String?
+
+  /// Presupuesto manual de VRAM/RAM en MB para las recomendaciones. null ⇒ usar la autodetección.
+  vramBudgetMb Int?
+  ramBudgetMb  Int?
+
+  version       Int      @default(1)
+  actualizadoEn DateTime @updatedAt
+  creadoEn      DateTime @default(now())
+}
+
 enum RecomendacionMatching {
   SI
   NO

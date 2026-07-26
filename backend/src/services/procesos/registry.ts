@@ -12,6 +12,7 @@ import {
 import { perfilEmpresaRepository } from "../../repositories/perfilEmpresaRepository";
 import { procesoRunRepository } from "../../repositories/procesoRunRepository";
 import type { ProcesoTipo } from "../../types/procesos";
+import { configuracionIaService } from "../configuracionIaService";
 import { NotFoundError } from "../../utils/errors";
 import { AnalisisLicitacionesService } from "../analisisLicitacionesService";
 import { EmbeddingDocumentosService } from "../embeddingDocumentosService";
@@ -22,7 +23,9 @@ import { ProcesoRunner } from "./procesoRunner";
 function clienteChat(): OllamaClient {
   return new OllamaClient({
     host: config.OLLAMA_URL,
-    model: config.OLLAMA_MODEL,
+    // Thunk, no string: el modelo se resuelve en cada llamada desde el setting de Ajustes, así que
+    // cambiarlo toma efecto sin reiniciar aunque este cliente esté memoizado (ver getRunner).
+    model: () => configuracionIaService.modeloChatActivo(),
     timeoutMs: config.OLLAMA_REQUEST_TIMEOUT_MS,
     streamIdleTimeoutMs: config.OLLAMA_STREAM_IDLE_TIMEOUT_MS,
     streamHardCapMs: config.OLLAMA_STREAM_HARD_CAP_MS,
@@ -52,7 +55,7 @@ function construirRunners() {
     ANALISIS: new ProcesoRunner<LicitacionPendiente, void>(
       {
         tipo: "ANALISIS",
-        modelo: () => config.OLLAMA_MODEL,
+        modelo: () => configuracionIaService.modeloChatActivo(),
         planificar: (seleccion) => analisis.planificar(seleccion),
         describir: (l) => ({
           objetoId: l.id,
@@ -71,7 +74,7 @@ function construirRunners() {
     MATCHING: new ProcesoRunner<LicitacionParaMatchingPendiente, ContextoMatching>(
       {
         tipo: "MATCHING",
-        modelo: () => config.OLLAMA_MODEL,
+        modelo: () => configuracionIaService.modeloChatActivo(),
         planificar: (seleccion) => matching.planificar(seleccion),
         describir: (l) => ({
           objetoId: l.id,

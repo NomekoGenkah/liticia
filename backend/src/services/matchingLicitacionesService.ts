@@ -1,4 +1,4 @@
-import type { OllamaClient } from "../clients/ollamaClient";
+import type { ChatLlmClient } from "../clients/chatLlmClient";
 import type { PerfilEmpresaParaMatching } from "../clients/ollamaClient.types";
 import { config } from "../config/env";
 import { logger } from "../config/logger";
@@ -44,7 +44,7 @@ function toPerfilParaMatching(perfil: {
 
 export class MatchingLicitacionesService {
   constructor(
-    private readonly ollamaClient: OllamaClient,
+    private readonly ollamaClient: ChatLlmClient,
     private readonly perfilEmpresaRepo: typeof perfilEmpresaRepository,
     private readonly matchingRepo: typeof matchingLicitacionRepository
   ) {}

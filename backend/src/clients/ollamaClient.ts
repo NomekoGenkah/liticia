@@ -2,11 +2,17 @@ import { type AbortableAsyncIterator, type ChatResponse, Ollama } from "ollama";
 import { z } from "zod";
 import { OllamaApiError, ProcesoCanceladoError } from "../utils/errors";
 import { withRetry } from "../utils/httpRetry";
+import type { ChatLlmClient } from "./chatLlmClient";
 import type { AnalisisLlmResultado, MatchingLlmResultado } from "./ollamaClient.types";
 
 interface OllamaClientOptions {
   host: string;
-  model: string;
+  /**
+   * El modelo de chat. Acepta un thunk además de un string para que el modelo se resuelva en cada
+   * llamada, no al construir el cliente: así el selector de modelo de Ajustes cambia el modelo sin
+   * reiniciar el backend, aunque el cliente esté memoizado en `registry.ts`/`preguntasRunner.ts`.
+   */
+  model: string | (() => string);
   /** Tope de pared de las llamadas sin streaming (embeddings, RAG). */
   timeoutMs: number;
   retryMax: number;
@@ -186,8 +192,13 @@ export function validarEmbeddings(embeddings: unknown, esperados: number): numbe
   return embeddings as number[][];
 }
 
-export class OllamaClient {
+export class OllamaClient implements ChatLlmClient {
   private readonly client: Ollama;
+
+  /** Resuelve el modelo de chat en cada llamada (ver el comentario de `OllamaClientOptions.model`). */
+  private modelo(): string {
+    return typeof this.options.model === "function" ? this.options.model() : this.options.model;
+  }
 
   constructor(private readonly options: OllamaClientOptions) {
     /**
@@ -248,7 +259,7 @@ export class OllamaClient {
       // La llamada va DENTRO del try: si Ollama no está levantado, el error tiene que salir como
       // OllamaApiError igual que el resto, no crudo.
       iterador = await this.client.chat({
-        model: this.options.model,
+        model: this.modelo(),
         messages: [
           { role: "system", content: prompt.system },
           { role: "user", content: prompt.user },
@@ -287,7 +298,7 @@ export class OllamaClient {
       // usuario" de "Ollama se colgó". Cubre también el ProcesoCanceladoError de más arriba.
       if (opts.signal?.aborted) throw new ProcesoCanceladoError();
       throw new OllamaApiError(
-        `Falló la llamada a Ollama (${this.options.host}, modelo ${this.options.model}): ${
+        `Falló la llamada a Ollama (${this.options.host}, modelo ${this.modelo()}): ${
           err instanceof Error ? err.message : String(err)
         }`
       );
@@ -383,7 +394,7 @@ export class OllamaClient {
         let response;
         try {
           response = await this.client.chat({
-            model: this.options.model,
+            model: this.modelo(),
             messages: [
               { role: "system", content: prompt.system },
               { role: "user", content: prompt.user },
@@ -402,7 +413,7 @@ export class OllamaClient {
           });
         } catch (err) {
           throw new OllamaApiError(
-            `Falló la llamada a Ollama (${this.options.host}, modelo ${this.options.model}): ${
+            `Falló la llamada a Ollama (${this.options.host}, modelo ${this.modelo()}): ${
               err instanceof Error ? err.message : String(err)
             }`
           );
