@@ -1,0 +1,206 @@
+===================================================================================
+           RESULTADOS DE CALIFICACIÓN: 100 LICITACIONES (TYPESAFE AI JEV)          
+Fecha: 2026-09-21T00:47:33.329Z | Modelo: jev-latest | Proveedor: typesafe
+Perfil: Soluciones y Desarrollo Web Digital SpA (Tecnología de la Información, Desarrollo de Software y Plataformas Web)
+Enfoque: Desarrollo de Software, Plataformas Web, Cloud, IT, Remoto y Coquimbo
+===================================================================================
+
+MÉTRICAS GLOBALES:
+• Total Evaluadas:         100
+• Recomendadas 'SI':       1 (1%)
+• Recomendadas 'TAL_VEZ':  7 (7%)
+• Recomendadas 'NO':       92 (92%)
+• Puntaje Promedio:        28/100
+• Tiempo Promedio LLM:     311 ms
+• Tiempo Total Proceso:    32.5 s
+
+===================================================================================
+TOP LICITACIONES CON MAYOR AFINIDAD (RECOMENDACIÓN 'SI' O 'TAL_VEZ'):
+===================================================================================
+
+[#1] PUNTAJE: 83/100 | RECOMENDACIÓN: SI | DURACIÓN: 315ms
+     Código:    1002592-6-LP26
+     Nombre:    Servicio integral de Cloud Computing con Hosting
+     Organismo: SERVICIO LOCAL DE EDUCACION LAS BARRANCAS
+     Región:    Región Metropolitana de Santiago
+     Monto:     $135.000.000 CLP
+     Motivo:    Evaluación TypeSafe (jev-latest): afinidad de rubro al 85%, viabilidad de monto al 99%, compatibilidad territorial/formal al 63%. Recomendación: Sí (confianza 33%).
+     Ficha:     https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?idlicitacion=1002592-6-LP26
+
+[#2] PUNTAJE: 65/100 | RECOMENDACIÓN: TAL_VEZ | DURACIÓN: 336ms
+     Código:    1002584-12-LE26
+     Nombre:    Programa institucional de adopción de IA
+     Organismo: DIRECCION DE EDUCACION PUBLICA
+     Región:    Región Metropolitana de Santiago
+     Monto:     $28.000.000 CLP
+     Motivo:    Evaluación TypeSafe (jev-latest): afinidad de rubro al 51%, viabilidad de monto al 99%, compatibilidad territorial/formal al 58%. Recomendación: Tal vez (confianza 71%).
+     Ficha:     https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?idlicitacion=1002584-12-LE26
+
+[#3] PUNTAJE: 65/100 | RECOMENDACIÓN: TAL_VEZ | DURACIÓN: 274ms
+     Código:    1020-40-LP26
+     Nombre:    Serv.Cloud Amazon Web Services AWS o Equivalente
+     Organismo: MINISTERIO DE OBRAS PUBLICAS DIREC CION GRAL DE OO PP DCYF
+     Región:    Región Metropolitana de Santiago
+     Monto:     $295.121 USD
+     Motivo:    Evaluación TypeSafe (jev-latest): afinidad de rubro al 61%, viabilidad de monto al 69%, compatibilidad territorial/formal al 70%. Recomendación: Tal vez (confianza 58%).
+     Ficha:     https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?idlicitacion=1020-40-LP26
+
+[#4] PUNTAJE: 63/100 | RECOMENDACIÓN: NO | DURACIÓN: 302ms
+     Código:    1002588-97-LP26
+     Nombre:    Adquisición equipamiento para establecimientos TP
+     Organismo: SERVICIO LOCAL DE EDUCACION DE PUERTO CORDILLERA
+     Región:    Región de Coquimbo 
+     Monto:     $86.825.720 CLP
+     Motivo:    Evaluación TypeSafe (jev-latest): afinidad de rubro al 30%, viabilidad de monto al 99%, compatibilidad territorial/formal al 91%. Recomendación: No (confianza 60%).
+     Ficha:     https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?idlicitacion=1002588-97-LP26
+
+[#5] PUNTAJE: 61/100 | RECOMENDACIÓN: TAL_VEZ | DURACIÓN: 266ms
+     Código:    1020-35-LR26
+     Nombre:    Serv Ingeniería y Licencias para Renovación Máximo
+     Organismo: MINISTERIO DE OBRAS PUBLICAS DIREC CION GRAL DE OO PP DCYF
+     Región:    Región Metropolitana de Santiago
+     Monto:     $2.602.811 USD
+     Motivo:    Evaluación TypeSafe (jev-latest): afinidad de rubro al 64%, viabilidad de monto al 64%, compatibilidad territorial/formal al 54%. Recomendación: Tal vez (confianza 52%).
+     Ficha:     https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?idlicitacion=1020-35-LR26
+
+[#6] PUNTAJE: 60/100 | RECOMENDACIÓN: TAL_VEZ | DURACIÓN: 253ms
+     Código:    1051173-13-LP26
+     Nombre:    SERVICIO DE INFRAESTRUCTURA EN LA NUBE
+     Organismo: MINISTERIO SECRETARIA GENERAL DE LA PRESIDENCIA DE LA REPUBLICA
+     Región:    Región Metropolitana de Santiago
+     Monto:     No informado
+     Motivo:    Evaluación TypeSafe (jev-latest): afinidad de rubro al 68%, viabilidad de monto al 34%, compatibilidad territorial/formal al 70%. Recomendación: Tal vez (confianza 65%).
+     Ficha:     https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?idlicitacion=1051173-13-LP26
+
+[#7] PUNTAJE: 57/100 | RECOMENDACIÓN: TAL_VEZ | DURACIÓN: 286ms
+     Código:    1020-36-LP26
+     Nombre:    Instalación de Sistema de Videovigilancia IP MOP
+     Organismo: MINISTERIO DE OBRAS PUBLICAS DIREC CION GRAL DE OO PP DCYF
+     Región:    Región Metropolitana de Santiago
+     Monto:     $86.000.000 CLP
+     Motivo:    Evaluación TypeSafe (jev-latest): afinidad de rubro al 38%, viabilidad de monto al 99%, compatibilidad territorial/formal al 54%. Recomendación: Tal vez (confianza 49%).
+     Ficha:     https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?idlicitacion=1020-36-LP26
+
+[#8] PUNTAJE: 53/100 | RECOMENDACIÓN: TAL_VEZ | DURACIÓN: 313ms
+     Código:    1051765-22-LE26
+     Nombre:    Mantención y reparación de equipos computacionales para año 2026-2027
+     Organismo: DIRECCION GENERAL DE GENDARMERIA DE CHIL
+     Región:    Región del Ñuble
+     Monto:     $15.000.000 CLP
+     Motivo:    Evaluación TypeSafe (jev-latest): afinidad de rubro al 38%, viabilidad de monto al 97%, compatibilidad territorial/formal al 40%. Recomendación: Tal vez (confianza 41%).
+     Ficha:     https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?idlicitacion=1051765-22-LE26
+
+[#9] PUNTAJE: 46/100 | RECOMENDACIÓN: TAL_VEZ | DURACIÓN: 281ms
+     Código:    1051173-12-CO26
+     Nombre:    ADQUISICIÓN DE LICENCIAS FRESHDESK
+     Organismo: MINISTERIO SECRETARIA GENERAL DE LA PRESIDENCIA DE LA REPUBLICA
+     Región:    Región Metropolitana de Santiago
+     Monto:     No informado
+     Motivo:    Evaluación TypeSafe (jev-latest): afinidad de rubro al 46%, viabilidad de monto al 34%, compatibilidad territorial/formal al 59%. Recomendación: Tal vez (confianza 42%).
+     Ficha:     https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?idlicitacion=1051173-12-CO26
+
+===================================================================================
+TABLA COMPLETA RESUMIDA DE LAS LICITACIONES EVALUADAS (ORDEN DE PUNTAJE):
+===================================================================================
+POS | PUNTAJE | REC.    | CÓDIGO         | REGIÓN                         | NOMBRE
+----+---------+---------+----------------+--------------------------------+-------------------------------------------------
+001 |  83/100 | SI      | 1002592-6-LP26 | Región Metropolitana de Santia | Servicio integral de Cloud Computing con Hosting
+002 |  65/100 | TAL_VEZ | 1002584-12-LE26 | Región Metropolitana de Santia | Programa institucional de adopción de IA
+003 |  65/100 | TAL_VEZ | 1020-40-LP26   | Región Metropolitana de Santia | Serv.Cloud Amazon Web Services AWS o Equivalente
+004 |  63/100 | NO      | 1002588-97-LP26 | Región de Coquimbo             | Adquisición equipamiento para establecimientos T
+005 |  61/100 | TAL_VEZ | 1020-35-LR26   | Región Metropolitana de Santia | Serv Ingeniería y Licencias para Renovación Máxi
+006 |  60/100 | TAL_VEZ | 1051173-13-LP26 | Región Metropolitana de Santia | SERVICIO DE INFRAESTRUCTURA EN LA NUBE
+007 |  57/100 | TAL_VEZ | 1020-36-LP26   | Región Metropolitana de Santia | Instalación de Sistema de Videovigilancia IP MOP
+008 |  53/100 | NO      | 1002588-96-LE26 | Región de Coquimbo             | Producción salida pedagógica INSUCO
+009 |  53/100 | TAL_VEZ | 1051765-22-LE26 | Región del Ñuble               | Mantención y reparación de equipos computacional
+010 |  51/100 | NO      | 1016-9-LE26    | Región Metropolitana de Santia | Equipamiento Informático 11 Notebook Workstation
+011 |  50/100 | NO      | 1028897-38-LE26 | Región de la Araucanía         | ADQUISICIÓN DE EQUIPAMIENTO TECNOLÓGICO EE SLEPC
+012 |  49/100 | NO      | 1002588-98-L126 | Región de Coquimbo             | Servicio de producción para salida pedagógica in
+013 |  47/100 | NO      | 1004823-10-LP26 | Región de Coquimbo             | MAQUINARIAS Y EQUIPOS PARA EL DESARROLLO DEL PRO
+014 |  46/100 | TAL_VEZ | 1051173-12-CO26 | Región Metropolitana de Santia | ADQUISICIÓN DE LICENCIAS FRESHDESK
+015 |  42/100 | NO      | 1031849-20-LP26 | Región del Biobío              | SERVICIOS DE CAPACITACIÓN EXTERNA PARA LA RED AP
+016 |  41/100 | NO      | 1019-104-LE26  | Región Metropolitana de Santia | Asesoria y Consultoria Glaciar Nevados de Chillá
+017 |  41/100 | NO      | 1019-108-LE26  | Región Metropolitana de Santia | Monitoreo Glaciar Tapado Coquimbo 2026-2027
+018 |  40/100 | NO      | 1019-110-LE26  | Región Metropolitana de Santia | Monitoreo Glaciar Volcan Mocho 2026-2027
+019 |  39/100 | NO      | 1019-109-L126  | Región Metropolitana de Santia | CERTIFICACIÓN DE SENSORES DE TEMPERATURA Y HUMED
+020 |  38/100 | NO      | 1040538-15-L126 | Región del Ñuble               | CONTRATACIÓN DEL SERVICIO DE MONTAJE, HABILITACI
+021 |  38/100 | NO      | 1038-11-LE26   | Región de Magallanes y de la A | Mejoramiento de la Plaza Villa Las Nieves Punta 
+022 |  37/100 | NO      | 1048-68-LE26   | Región de Valparaíso           | MEJORAMIENTO CARPETAS DE PASTO SINTETICO CANCHAS
+023 |  37/100 | NO      | 1057049-329-LE26 | Región Metropolitana de Santia | JAC ADQ. DE MANTAS TÉRMICAS CON COMODATO DE EQUI
+024 |  37/100 | NO      | 1049242-31-LE26 | Región del Ñuble               | FERIA REGIONAL DE ARTESANÍAS 2026
+025 |  37/100 | NO      | 1019-111-LE26  | Región Metropolitana de Santia | ADQUISICIÓN DE POZÓMETROS
+026 |  37/100 | NO      | 1019-107-LE26  | Región Metropolitana de Santia | ADQ DE EQUIPO PARA MEDICIÓN DE DEMANDA BIOQUÍMIC
+027 |  37/100 | NO      | 1013353-35-LE26 | Región Metropolitana de Santia | Adquisición de Servicio de Telefonía Móvil para 
+028 |  37/100 | NO      | 1049-74-LP26   | Región de Valparaíso           | MONITOREO ERIZO ALMEJA Y LUGA ROJA LOS LAGOS AYS
+029 |  37/100 | NO      | 1013353-34-LP26 | Región Metropolitana de Santia | ADQUISICIÓN DE MATERIAL DE FERRETERÍA PARA REALI
+030 |  36/100 | NO      | 1043030-7-LE26 | Región del Ñuble               | MUESTRA REGIONAL DE CUECA
+031 |  36/100 | NO      | 1003-26-CO26   | Región Aysén del General Carlo | SIST. PROSPECCIÓN GEOFÍSICA PARA ENSAYOS SISMICO
+032 |  36/100 | NO      | 1007793-17-LP26 | Región de los Lagos            | LABORATORIOS DE ELECTRONEUMATICA ELECTROHIDRAULI
+033 |  36/100 | NO      | 1020-49-LP26   | Región Metropolitana de Santia | Adq. Ampliación Vigencia Licencias Sophos MOP
+034 |  36/100 | NO      | 1049242-33-LP26 | Región del Ñuble               | SERVICIO DE PRODUCCIÓN INTEGRAL MERCADO CREATIVO
+035 |  35/100 | NO      | 1051425-43-LE26 | Región del Ñuble               | ROPA Y ELEMENTOS DE PROTECCIÓN PERSONAL DRV ÑUBL
+036 |  35/100 | NO      | 1019-106-LE26  | Región Metropolitana de Santia | REGLAS LIMNIMÉTRICAS Y FICHAS DE FIERRO
+037 |  35/100 | NO      | 1020-48-LP26   | Región Metropolitana de Santia | Adquisición e implementación de una Solución de 
+038 |  34/100 | NO      | 1049-72-LE26   | Región de Valparaíso           | SEPARACIÓN DE MACROINFAUNA BENTÓNICA 
+039 |  34/100 | NO      | 1040538-6-LP26 | Región del Ñuble               | PRODUCCIÓN DE EVENTOS FERIAS Y ACTIVIDADES PARA 
+040 |  34/100 | NO      | 1029940-14-CO26 | Región Metropolitana de Santia | Servicio de mantención y limpieza preventiva
+041 |  34/100 | NO      | 1035685-19-LE26 | Región de Los Ríos             | Ampliación de Espacio Académico Sede Panguipulli
+042 |  34/100 | NO      | 1005498-21-LP26 | Región Metropolitana de Santia | Servicio de Mantenimiento de Infraestructura
+043 |  33/100 | NO      | 1028871-33-LE26 | Región de Atacama              | SERVICIO REPARACIONES E INSTALACIONES DE GAS SLE
+044 |  33/100 | NO      | 1006-20-LE26   | Región de Magallanes y de la A | CONFECCIÓN DE TIMBRES DIPLOMAS GALVANOS
+045 |  31/100 | NO      | 1006-21-LE26   | Región de Magallanes y de la A | SERVICIO DE RETIRO DE DESECHOS MATERIAL GRANULAR
+046 |  31/100 | NO      | 1028-46-LE26   | Región de Valparaíso           | BASE GRANULAR CHANCADA TM 1 ½”
+047 |  31/100 | NO      | 1020-38-LP26   | Región Metropolitana de Santia | Adquisición de Plataforma Next Generation Firewa
+048 |  28/100 | NO      | 1016-7-O126    | Región del Maule               | Análisis de desbordes en cauces Ruta J-80, Llico
+049 |  23/100 | NO      | 1044-17-O126   | Región Metropolitana de Santia | ATIF contrato Normalización Cercos Perimetrales 
+050 |  21/100 | NO      | 1002772-100-LP26 | Región Metropolitana de Santia | SUMINISTRO DE APOSITO ESPUMA POLIURETANO MULTICA
+051 |  21/100 | NO      | 1036569-11-LE26 | Región del Ñuble               | SUMINISTRO DE PASAJES AÉREOS INTERNACIONALES
+052 |  21/100 | NO      | 1002772-92-LE26 | Región Metropolitana de Santia | ACCESOS VASCULARES PEDIATRICOS
+053 |  21/100 | NO      | 1020-47-LE26   | Región Metropolitana de Santia | Servicio de Telefonía Satelital para Equipos MOP
+054 |  20/100 | NO      | 1002772-93-LP26 | Región Metropolitana de Santia | INSUMO REANIMADOR NEOPUFF
+055 |  20/100 | NO      | 1002772-88-LR26 | Región Metropolitana de Santia | PRÓTESIS DE RODILLA EN CONSIGNACIÓN CON COMODATO
+056 |  20/100 | NO      | 1057049-317-LR26 | Región Metropolitana de Santia | CSP - PRESTACIONES INTEGRALES DE RADIOTERAPIA
+057 |  20/100 | NO      | 1002772-99-LE26 | Región Metropolitana de Santia | FILTRO DE CONCENTRADO DE GLÓBULOS ROJOS Y PLAQUE
+058 |  19/100 | NO      | 1045-7-LE26    | Región de Arica y Parinacota   | CONSERVACIÓN ESTACIONES  FLUVIOMÉTRICAS 2026
+059 |  19/100 | NO      | 1030-18-LE26   | Región de Magallanes y de la A | MANTENCION SALA DE CONSERVACION Y CALEFACCION
+060 |  19/100 | NO      | 1028-48-LP26   | Región de Valparaíso           | Estabilizador de Suelo en Base a Copolimero
+061 |  19/100 | NO      | 1002772-94-LE26 | Región Metropolitana de Santia | INSUMOS PARA TERAPIA RESPIRATORIA MONITORIZACION
+062 |  19/100 | NO      | 1049-75-LE26   | Región de Valparaíso           | EV.DE STOCK ANCHOVETA Y SARDINA ESPAÑOLA ARICA P
+063 |  19/100 | NO      | 1002772-96-LP26 | Región Metropolitana de Santia | INSTRUMENTAL DE NEURO CON CRANEOTOMO EN COMODATO
+064 |  19/100 | NO      | 1002772-98-LE26 | Región Metropolitana de Santia | SUMINISTRO CATETER TORACICOS DISTINTAS MEDIDAS
+065 |  19/100 | NO      | 1013353-33-LP26 | Región Metropolitana de Santia | SERVICIO PROVISIÓN ARRIENDO Y MANT. CONTENEDORES
+066 |  18/100 | NO      | 1045-6-LP26    | Región de Arica y Parinacota   | CONSTRUCCIÓN ESTACIÓN GLACIOMÉTRICA PAMPA ORCOGU
+067 |  18/100 | NO      | 1003-25-LP26   | Región Aysén del General Carlo | ADQUISICION RESALTOS REDUCTORES DE VELOCIDAD RED
+068 |  18/100 | NO      | 1002772-95-LE26 | Región Metropolitana de Santia | TUBOS ENDOTRAQUEALES ORAL Y NASAL PREFORMADOS
+069 |  18/100 | NO      | 1028-50-LE26   | Región de Valparaíso           | Emulsion Imprimante y Asfalto CRS-2
+070 |  18/100 | NO      | 1027-15-LP26   | Región de Atacama              | Servicio de Mantención Reparación y Habilitación
+071 |  18/100 | NO      | 1048-71-LP26   | Región de Valparaíso           | Concesion del servicio de aparcadero de vehiculo
+072 |  17/100 | NO      | 1002-74-LP26   | Región de los Lagos            | SERVICIO DE TRANSPORTE PERSONAL DE PESAJE VIALID
+073 |  17/100 | NO      | 1057049-325-LP26 | Región Metropolitana de Santia | PCV - Suministro Ropa Clínica e Insumos Textiles
+074 |  17/100 | NO      | 1003-27-LP26   | Región Aysén del General Carlo | ADQUISICIÓN REDUCTORES DE VELOCIDAD Y ELEMENTOS 
+075 |  17/100 | NO      | 1019-103-LP26  | Región Metropolitana de Santia | ADQUISICIÓN DE SENSORES RED HIDROMETRICA NACIONA
+076 |  17/100 | NO      | 1057049-322-I226 | Región Metropolitana de Santia | SHV SUMINISTRO DE REACTIVOS PARA BIOLOGIA MOLECU
+077 |  17/100 | NO      | 1002772-97-LP26 | Región Metropolitana de Santia | SUMINISTROS ODONTOLOGICOS PARA REHABILITACION OR
+078 |  16/100 | NO      | 1000-22-LE26   | Región del Biobío              | Suministro Tubos de Polietileno de alta densidad
+079 |  16/100 | NO      | 1021609-24-LP26 | Región del Libertador General  | CONVENIO DE SUMINISTRO DE MEDICAMENTOS EN COMPRI
+080 |  16/100 | NO      | 1020-33-LR26   | Región Metropolitana de Santia | Adq. 6 Unidades Móviles de Pesaje nuevas y sin u
+081 |  15/100 | NO      | 1002-82-LP26   | Región de los Lagos            | CONVENIO DE MANTENCION REPARACION PARA MAQUINARI
+082 |  15/100 | NO      | 1049-73-LP26   | Región de Valparaíso           | LEASING DE CAMIONETAS
+083 |  15/100 | NO      | 1053139-8-LE26 | Región de Arica y Parinacota   | AIRE ACONDICIONADO SMARTRACK PARA EDIF. DICI -UT
+084 |  15/100 | NO      | 1039-7-LR26    | Región Metropolitana de Santia | SERVICIO  DE ARRIENDO DE EQUIPO MECANIZADO
+085 |  14/100 | NO      | 1002-79-LP26   | Región de los Lagos            | CONVENIO DE MANTENCION Y REPARACION MAQUINARIAS 
+086 |  13/100 | NO      | 1036569-10-LP26 | Región del Ñuble               | PROYECTO: EQUIPAMIENTO REHABILITACIÓN TELETÓN
+087 |  13/100 | NO      | 1021609-23-LP26 | Región del Libertador General  | CONVENIO DE SUMINISTRO DE MEDICAMENTOS EN COMPRI
+088 |  12/100 | NO      | 1005-21-LP26   | Región Aysén del General Carlo | ADQUISICIÓN DE GRAVILLA Y POLVO ROCA DIRECCIÓN D
+089 |  12/100 | NO      | 1019-101-LP26  | Región Metropolitana de Santia | CONSTRUCCIÓN DE DOS 2 ESTACIONES METEOROLÓGICAS
+090 |  12/100 | NO      | 1036-17-LR26   | Región del Biobío              | Adquisición de Dos Puestos de Comando para CONAF
+091 |  12/100 | NO      | 1020-30-LR26   | Región Metropolitana de Santia | 2 Unidades Snowcat nuevos y sin uso para el MOP
+092 |  10/100 | NO      | 1051425-40-LP26 | Región del Ñuble               | ADQ. VIGAS METALICAS DRV ÑUBLE
+093 |  10/100 | NO      | 1057049-328-LR26 | Región Metropolitana de Santia | SHV SUMINISTRO DE REACTIVOS DE AUTOINMUNIDAD CON
+094 |   9/100 | NO      | 1001-11-LP26   | Región de la Araucanía         | SUMINISTRO MATERIAL GRANULAR CHANCADA REGIONAL
+095 |   8/100 | NO      | 1038-10-LP26   | Región de Magallanes y de la A | Arriendo de vehículos para Brigadas DEPRIF Magal
+096 |   8/100 | NO      | 1029-22-LP26   | Región del Maule               | SERVICIO ARRIENDO MAQUINARIA DE COMPACTACION DRV
+097 |   7/100 | NO      | 1001-12-LP26   | Región de la Araucanía         | SUMINISTRO MATERIAL GRANULAR GRAVILLAS REGIONAL
+098 |   7/100 | NO      | 1028897-37-LR26 | Región de la Araucanía         | REPOSICIÓN VEHÍCULOS TRANSPORTE ESCOLAR SLEPCA
+099 |   7/100 | NO      | 1039-11-LP26   | Región Metropolitana de Santia | ARRIENDO CAMIONES TRANSPORTE AGUA Y PERSONAL
+100 |   6/100 | NO      | 1036-10-LR26   | Región del Biobío              | Servicio Arriendo y Operación de Equipos Mecaniz

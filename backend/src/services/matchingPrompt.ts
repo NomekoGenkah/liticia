@@ -49,17 +49,34 @@ Rango de monto de interés: ${formatRangoMonto(perfil.montoMinimo, perfil.montoM
 }
 
 function formatLicitacion(licitacion: LicitacionParaMatching): string {
-  return `Nombre: ${licitacion.nombre}
+  const encabezado = `Nombre: ${licitacion.nombre}
 Organismo comprador: ${licitacion.nombreOrganismo ?? "no informado"}
 Tipo de licitación: ${licitacion.tipo ?? "no informado"}
 Monto estimado: ${formatMonto(licitacion.montoEstimado, licitacion.moneda)}
 Región: ${licitacion.regionUnidad ?? "no informada"}
-Fecha de cierre: ${formatFecha(licitacion.fechaCierre)}
+Fecha de cierre: ${formatFecha(licitacion.fechaCierre)}`;
+
+  if (licitacion.analisis) {
+    return `${encabezado}
 
 Resumen ejecutivo: ${licitacion.analisis.resumenEjecutivo ?? "no disponible"}
 Puntos clave: ${formatLista(licitacion.analisis.puntosClave, "(sin puntos clave)")}
 Palabras clave: ${formatLista(licitacion.analisis.palabrasClave, "(sin palabras clave)")}
 Nivel de complejidad: ${licitacion.analisis.nivelComplejidad ?? "no informado"}`;
+  }
+
+  const itemsTxt =
+    licitacion.items && licitacion.items.length > 0
+      ? licitacion.items
+          .slice(0, 10)
+          .map((it) => (it.categoriaUnspsc ? `${it.nombreProducto} (UNSPSC: ${it.categoriaUnspsc})` : it.nombreProducto))
+          .join(", ")
+      : "no informados";
+
+  return `${encabezado}
+
+Descripción oficial: ${licitacion.descripcion ?? "no informada"}
+Productos / Ítems solicitados: ${itemsTxt}`;
 }
 
 export function buildMatchingPrompt(
@@ -71,7 +88,7 @@ export function buildMatchingPrompt(
 Perfil del postulante:
 ${formatPerfil(perfil)}
 
-Licitación (ya analizada):
+Licitación a evaluar:
 ${formatLicitacion(licitacion)}
 
 Genera un objeto JSON con estos campos:

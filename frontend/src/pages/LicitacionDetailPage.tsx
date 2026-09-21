@@ -1,5 +1,6 @@
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { CheckCircle2, HelpCircle } from "lucide-react";
 import { obtenerLicitacion } from "@/api/licitaciones";
 import { EstadoBadge } from "@/components/licitaciones/EstadoBadge";
 import { AnalisisCard } from "@/components/licitacion-detail/AnalisisCard";
@@ -58,6 +59,22 @@ export function LicitacionDetailPage() {
           <EstadoBadge estado={licitacion.estado} />
         </div>
         <p className="text-sm text-muted-foreground">{licitacion.codigoExterno}</p>
+        {licitacion.matching?.recomendacion === "SI" && (
+          <div className="mt-3 flex items-center gap-2.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-sm text-emerald-800 dark:text-emerald-300">
+            <CheckCircle2 className="size-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+            <span>
+              <strong>Oportunidad recomendada por IA:</strong> Calce de {licitacion.matching.puntaje}/100 con tu perfil tecnológico.
+            </span>
+          </div>
+        )}
+        {licitacion.matching?.recomendacion === "TAL_VEZ" && (
+          <div className="mt-3 flex items-center gap-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-800 dark:text-amber-300">
+            <HelpCircle className="size-5 shrink-0 text-amber-600 dark:text-amber-400" />
+            <span>
+              <strong>Calce moderado ({licitacion.matching.puntaje}/100):</strong> Recomendamos revisar las bases técnicas y requisitos antes de postular.
+            </span>
+          </div>
+        )}
       </div>
 
       <Card>

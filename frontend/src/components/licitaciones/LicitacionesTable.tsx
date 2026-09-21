@@ -1,10 +1,12 @@
 import { useNavigate } from "react-router-dom";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Sparkles } from "lucide-react";
 import { EstadoBadge } from "./EstadoBadge";
 import { RecomendacionBadge } from "./RecomendacionBadge";
 import { NivelComplejidadBadge } from "./NivelComplejidadBadge";
 import { formatFecha, formatMonto } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import type { LicitacionListItem } from "@/types/api";
 
 interface Props {
@@ -52,12 +54,16 @@ export function LicitacionesTable({ licitaciones, seleccion, onToggle, onToggleT
       <TableBody>
         {licitaciones.map((licitacion) => {
           const tildada = seleccion.has(licitacion.id);
+          const esRecomendada = licitacion.matching?.recomendacion === "SI";
 
           return (
             <TableRow
               key={licitacion.id}
               data-state={tildada ? "selected" : undefined}
-              className="cursor-pointer"
+              className={cn(
+                "cursor-pointer transition-colors",
+                esRecomendada && "bg-emerald-500/[0.04] hover:bg-emerald-500/[0.08]"
+              )}
               onClick={() => navigate(`/licitaciones/${licitacion.codigoExterno}`)}
             >
               {/* El stopPropagation va en la celda y no solo en el checkbox: hacer clic en el
@@ -70,7 +76,12 @@ export function LicitacionesTable({ licitaciones, seleccion, onToggle, onToggleT
                 />
               </TableCell>
               <TableCell className="max-w-80 truncate whitespace-normal">
-                <div className="font-medium">{licitacion.nombre}</div>
+                <div className="font-medium flex items-center gap-1.5">
+                  {esRecomendada && (
+                    <Sparkles className="size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                  )}
+                  <span>{licitacion.nombre}</span>
+                </div>
                 <div className="text-xs text-muted-foreground">{licitacion.codigoExterno}</div>
               </TableCell>
               <TableCell className="max-w-52 truncate">{licitacion.nombreOrganismo ?? "—"}</TableCell>

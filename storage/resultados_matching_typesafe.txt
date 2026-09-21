@@ -1,0 +1,89 @@
+===================================================================================
+          RESULTADOS DE CALIFICACIÓN DE LICITACIONES CON TYPESAFE AI (JEV)         
+Fecha: 2026-09-21T00:24:28.854Z | Modelo: jev-latest
+===================================================================================
+
+-----------------------------------------------------------------------------------
+[#1] Licitación: 1000-22-LE26 - Suministro Tubos de Polietileno de alta densidad.
+Organismo: MINISTERIO DE OBRAS PUBLICAS DIREC CION GRAL DE OO PP DCYF
+Monto Estimado: No informado
+PUNTAJE: 80/100 | RECOMENDACIÓN: SI | DURACIÓN: 271ms | MODELO: jev-latest
+JUSTIFICACIÓN:
+Evaluación TypeSafe (jev-latest): afinidad de rubro al 94%, viabilidad de monto al 33%, compatibilidad territorial/formal al 99%. Recomendación: Sí (confianza 77%).
+
+-----------------------------------------------------------------------------------
+[#2] Licitación: 1002584-12-LE26 - Programa institucional de adopción de IA
+Organismo: DIRECCION DE EDUCACION PUBLICA
+Monto Estimado: $28.000.000 CLP
+PUNTAJE: 50/100 | RECOMENDACIÓN: NO | DURACIÓN: 262ms | MODELO: jev-latest
+JUSTIFICACIÓN:
+Evaluación TypeSafe (jev-latest): afinidad de rubro al 4%, viabilidad de monto al 99%, compatibilidad territorial/formal al 91%. Recomendación: No (confianza 93%).
+
+-----------------------------------------------------------------------------------
+[#3] Licitación: 1001-11-LP26 - SUMINISTRO MATERIAL GRANULAR CHANCADA REGIONAL
+Organismo: MINISTERIO DE OBRAS PUBLICAS DIREC CION GRAL DE OO PP DCYF
+Monto Estimado: $286.500.000 CLP
+PUNTAJE: 47/100 | RECOMENDACIÓN: TAL_VEZ | DURACIÓN: 795ms | MODELO: jev-latest
+JUSTIFICACIÓN:
+Evaluación TypeSafe (jev-latest): afinidad de rubro al 70%, viabilidad de monto al 10%, compatibilidad territorial/formal al 37%. Recomendación: Tal vez (confianza 41%).
+
+-----------------------------------------------------------------------------------
+[#4] Licitación: 1001-12-LP26 - SUMINISTRO MATERIAL GRANULAR GRAVILLAS REGIONAL
+Organismo: MINISTERIO DE OBRAS PUBLICAS DIREC CION GRAL DE OO PP DCYF
+Monto Estimado: $286.500.000 CLP
+PUNTAJE: 47/100 | RECOMENDACIÓN: TAL_VEZ | DURACIÓN: 294ms | MODELO: jev-latest
+JUSTIFICACIÓN:
+Evaluación TypeSafe (jev-latest): afinidad de rubro al 71%, viabilidad de monto al 9%, compatibilidad territorial/formal al 37%. Recomendación: Tal vez (confianza 43%).
+
+-----------------------------------------------------------------------------------
+[#5] Licitación: 1002588-97-LP26 - Adquisición equipamiento para establecimientos TP
+Organismo: SERVICIO LOCAL DE EDUCACION DE PUERTO CORDILLERA
+Monto Estimado: $86.825.720 CLP
+PUNTAJE: 37/100 | RECOMENDACIÓN: NO | DURACIÓN: 279ms | MODELO: jev-latest
+JUSTIFICACIÓN:
+Evaluación TypeSafe (jev-latest): afinidad de rubro al 9%, viabilidad de monto al 98%, compatibilidad territorial/formal al 33%. Recomendación: No (confianza 67%).
+
+-----------------------------------------------------------------------------------
+[#6] Licitación: 1002772-100-LP26 - SUMINISTRO DE APOSITO ESPUMA POLIURETANO MULTICAPA
+Organismo: SERVICIO SALUD OCCIDENTE HOSPITAL DR FELIX BULNES CERDA
+Monto Estimado: No informado
+PUNTAJE: 34/100 | RECOMENDACIÓN: NO | DURACIÓN: 327ms | MODELO: jev-latest
+JUSTIFICACIÓN:
+Evaluación TypeSafe (jev-latest): afinidad de rubro al 4%, viabilidad de monto al 33%, compatibilidad territorial/formal al 93%. Recomendación: No (confianza 89%).
+
+-----------------------------------------------------------------------------------
+[#7] Licitación: 1002588-96-LE26 - Producción salida pedagógica INSUCO
+Organismo: SERVICIO LOCAL DE EDUCACION DE PUERTO CORDILLERA
+Monto Estimado: $15.000.000 CLP
+PUNTAJE: 32/100 | RECOMENDACIÓN: NO | DURACIÓN: 261ms | MODELO: jev-latest
+JUSTIFICACIÓN:
+Evaluación TypeSafe (jev-latest): afinidad de rubro al 3%, viabilidad de monto al 98%, compatibilidad territorial/formal al 23%. Recomendación: No (confianza 89%).
+
+-----------------------------------------------------------------------------------
+[#8] Licitación: 1002588-98-L126 - Servicio de producción para salida pedagógica institucional; Liceo Pedro Regalado Videla
+Organismo: SERVICIO LOCAL DE EDUCACION DE PUERTO CORDILLERA
+Monto Estimado: $6.000.000 CLP
+PUNTAJE: 31/100 | RECOMENDACIÓN: NO | DURACIÓN: 268ms | MODELO: jev-latest
+JUSTIFICACIÓN:
+Evaluación TypeSafe (jev-latest): afinidad de rubro al 1%, viabilidad de monto al 96%, compatibilidad territorial/formal al 27%. Recomendación: No (confianza 93%).
+
+-----------------------------------------------------------------------------------
+[#9] Licitación: 1002592-6-LP26 - Servicio integral de Cloud Computing con Hosting
+Organismo: SERVICIO LOCAL DE EDUCACION LAS BARRANCAS
+Monto Estimado: $135.000.000 CLP
+PUNTAJE: 26/100 | RECOMENDACIÓN: NO | DURACIÓN: 296ms | MODELO: jev-latest
+JUSTIFICACIÓN:
+Evaluación TypeSafe (jev-latest): afinidad de rubro al 0%, viabilidad de monto al 15%, compatibilidad territorial/formal al 90%. Recomendación: No (confianza 99%).
+
+-----------------------------------------------------------------------------------
+[#10] Licitación: 1002-74-LP26 - SERVICIO DE TRANSPORTE PERSONAL DE PESAJE VIALIDAD REGION DE LOS LAGOS
+Organismo: MINISTERIO DE OBRAS PUBLICAS DIREC CION GRAL DE OO PP DCYF
+Monto Estimado: No informado
+PUNTAJE: 18/100 | RECOMENDACIÓN: NO | DURACIÓN: 313ms | MODELO: jev-latest
+JUSTIFICACIÓN:
+Evaluación TypeSafe (jev-latest): afinidad de rubro al 7%, viabilidad de monto al 33%, compatibilidad territorial/formal al 26%. Recomendación: No (confianza 78%).
+
+===================================================================================
+TOTAL EVALUADAS: 10/10
+PROMEDIO PUNTAJE: 40/100
+===================================================================================

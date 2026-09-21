@@ -16,10 +16,13 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "dotenv -e ../.env -- prisma migrate dev",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:matching-diez": "tsx src/jobs/testearMatchingDiez.ts",
+    "test:matching-cien": "tsx src/jobs/probarCienLicitaciones.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.9.0",
+    "@typesafe-ai/sdk": "^0.6.0",
     "dotenv": "^16.6.1",
     "exceljs": "^4.4.0",
     "express": "^4.21.2",

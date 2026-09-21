@@ -29,7 +29,7 @@ const COPY: Record<ProcesoTipo, Copy> = {
   MATCHING: {
     titulo: "Matching IA",
     descripcion:
-      "Compara contra tu perfil las licitaciones activas ya analizadas que no tengan un matching vigente.",
+      "Compara contra tu perfil las licitaciones activas que no tengan un matching vigente.",
     accion: "Matchear todas",
     enCurso: "Matcheando…",
   },

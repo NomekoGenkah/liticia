@@ -1,6 +1,5 @@
-import type { OllamaClient } from "../clients/ollamaClient";
+import type { MatchingClient } from "../clients/matchingClient.interface";
 import type { PerfilEmpresaParaMatching } from "../clients/ollamaClient.types";
-import { config } from "../config/env";
 import { logger } from "../config/logger";
 import type {
   matchingLicitacionRepository,
@@ -10,7 +9,7 @@ import type { perfilEmpresaRepository } from "../repositories/perfilEmpresaRepos
 import type { ItemOmitido, OpcionesItem, PlanProceso, SeleccionProceso } from "../types/procesos";
 import { NotFoundError, ProcesoCanceladoError, UnprocessableEntityError } from "../utils/errors";
 import { segmentosDe } from "../utils/unspsc";
-import { buildMatchingPrompt, MATCHING_PROMPT_VERSION } from "./matchingPrompt";
+import { MATCHING_PROMPT_VERSION } from "./matchingPrompt";
 
 /** El perfil resuelto una sola vez por run, en vez de releerlo por cada licitación. */
 export interface ContextoMatching {
@@ -44,7 +43,7 @@ function toPerfilParaMatching(perfil: {
 
 export class MatchingLicitacionesService {
   constructor(
-    private readonly ollamaClient: OllamaClient,
+    private readonly matchingClient: MatchingClient,
     private readonly perfilEmpresaRepo: typeof perfilEmpresaRepository,
     private readonly matchingRepo: typeof matchingLicitacionRepository
   ) {}
@@ -112,16 +111,15 @@ export class MatchingLicitacionesService {
     opts: OpcionesItem
   ) {
     const inicio = Date.now();
-    const prompt = buildMatchingPrompt(perfil, licitacion);
 
     try {
-      const resultado = await this.ollamaClient.generarMatching(prompt, opts);
+      const resultado = await this.matchingClient.generarMatching(perfil, licitacion, opts);
       const guardado = await this.matchingRepo.guardarCompletado({
         licitacionId: licitacion.id,
         puntaje: resultado.puntaje,
         recomendacion: resultado.recomendacion.toUpperCase() as "SI" | "NO" | "TAL_VEZ",
         justificacion: resultado.justificacion,
-        modelo: config.OLLAMA_MODEL,
+        modelo: this.matchingClient.modelo,
         promptVersion: MATCHING_PROMPT_VERSION,
         perfilVersion,
         duracionMs: Date.now() - inicio,
@@ -138,7 +136,7 @@ export class MatchingLicitacionesService {
 
       await this.matchingRepo.guardarFallido({
         licitacionId: licitacion.id,
-        modelo: config.OLLAMA_MODEL,
+        modelo: this.matchingClient.modelo,
         promptVersion: MATCHING_PROMPT_VERSION,
         perfilVersion,
         duracionMs: Date.now() - inicio,

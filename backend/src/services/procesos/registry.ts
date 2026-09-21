@@ -16,9 +16,12 @@ import { NotFoundError } from "../../utils/errors";
 import { AnalisisLicitacionesService } from "../analisisLicitacionesService";
 import { EmbeddingDocumentosService } from "../embeddingDocumentosService";
 import { MatchingLicitacionesService, type ContextoMatching } from "../matchingLicitacionesService";
+import type { MatchingClient } from "../../clients/matchingClient.interface";
+import { OllamaMatchingClient } from "../../clients/ollamaMatchingClient";
+import { TypeSafeMatchingClient } from "../../clients/typeSafeMatchingClient";
 import { ProcesoRunner } from "./procesoRunner";
 
-/** El cliente de chat: análisis y matching comparten modelo, timeouts y política de reintentos. */
+/** El cliente de chat: análisis y matching (cuando corre con Ollama) comparten modelo, timeouts y reintentos. */
 function clienteChat(): OllamaClient {
   return new OllamaClient({
     host: config.OLLAMA_URL,
@@ -32,9 +35,17 @@ function clienteChat(): OllamaClient {
   });
 }
 
+function crearMatchingClient(): MatchingClient {
+  if (config.MATCHING_PROVIDER === "typesafe") {
+    return new TypeSafeMatchingClient();
+  }
+  return new OllamaMatchingClient(clienteChat(), config.OLLAMA_MODEL);
+}
+
 function construirRunners() {
+  const matchingClient = crearMatchingClient();
   const analisis = new AnalisisLicitacionesService(clienteChat(), analisisLicitacionRepository, perfilEmpresaRepository);
-  const matching = new MatchingLicitacionesService(clienteChat(), perfilEmpresaRepository, matchingLicitacionRepository);
+  const matching = new MatchingLicitacionesService(matchingClient, perfilEmpresaRepository, matchingLicitacionRepository);
   const embedding = new EmbeddingDocumentosService(
     new OllamaClient({
       host: config.OLLAMA_URL,
@@ -71,7 +82,7 @@ function construirRunners() {
     MATCHING: new ProcesoRunner<LicitacionParaMatchingPendiente, ContextoMatching>(
       {
         tipo: "MATCHING",
-        modelo: () => config.OLLAMA_MODEL,
+        modelo: () => matchingClient.modelo,
         planificar: (seleccion) => matching.planificar(seleccion),
         describir: (l) => ({
           objetoId: l.id,

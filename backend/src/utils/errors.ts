@@ -47,6 +47,12 @@ export class OllamaApiError extends AppError {
   }
 }
 
+export class TypeSafeApiError extends AppError {
+  constructor(message: string) {
+    super(message, 502, "TYPESAFE_API_ERROR");
+  }
+}
+
 export class UnprocessableEntityError extends AppError {
   constructor(message: string, code: string = "UNPROCESSABLE_ENTITY") {
     super(message, 422, code);

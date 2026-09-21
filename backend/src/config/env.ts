@@ -45,6 +45,12 @@ const envSchema = z.object({
   OLLAMA_RAG_NUM_CTX: z.coerce.number().int().positive().default(8192),
   RAG_TOP_K: z.coerce.number().int().positive().default(5),
 
+  MATCHING_PROVIDER: z.enum(["ollama", "typesafe"]).default("ollama"),
+  TYPESAFE_API_KEY: z.string().optional(),
+  TYPESAFE_MODEL: z.string().default("jev-latest"),
+  TYPESAFE_BASE_URL: z.string().url().optional(),
+  TYPESAFE_TIMEOUT_MS: z.coerce.number().int().positive().default(15000),
+
   SCHEDULE_MODE: z.enum(["cron", "interval"]).default("cron"),
   SCHEDULE_VALUE: z.string().default("0 2 * * *"),
 

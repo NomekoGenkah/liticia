@@ -44,7 +44,7 @@ describe("buildMatchingPrompt", () => {
     expect(user).toContain("climatización, mantención");
     expect(user).toContain(licitacionBase.nombre);
     expect(user).toContain(licitacionBase.nombreOrganismo!);
-    expect(user).toContain(licitacionBase.analisis.resumenEjecutivo!);
+    expect(user).toContain(licitacionBase.analisis!.resumenEjecutivo!);
     expect(user).toContain("Requiere certificación técnica");
     expect(user).toContain("MEDIA");
   });
@@ -104,5 +104,33 @@ describe("buildMatchingPrompt", () => {
 
     expect(user).toMatch(/no disponible/i);
     expect(user).toMatch(/sin puntos clave/i);
+  });
+
+  it("formatea correctamente una licitación sin análisis previo, usando descripción e ítems directamente", () => {
+    const licitacionDirecta: LicitacionParaMatching = {
+      nombre: "Adquisición de Servidores Dell",
+      descripcion: "Compra de 5 servidores para centro de cómputo municipal",
+      nombreOrganismo: "Hospital Regional",
+      montoEstimado: 25000000,
+      moneda: "CLP",
+      regionUnidad: "Valparaíso",
+      tipo: "L1",
+      fechaCierre: new Date("2026-08-15T12:00:00Z"),
+      items: [
+        {
+          nombreProducto: "Servidor Rack 2U",
+          categoriaUnspsc: "43211501",
+          cantidad: 5,
+          unidadMedida: "Unidad",
+        },
+      ],
+    };
+
+    const { user } = buildMatchingPrompt(perfilBase, licitacionDirecta);
+
+    expect(user).toContain("Compra de 5 servidores para centro de cómputo municipal");
+    expect(user).toContain("Servidor Rack 2U");
+    expect(user).toContain("43211501");
+    expect(user).toContain("Hospital Regional");
   });
 });

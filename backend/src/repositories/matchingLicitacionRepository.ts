@@ -26,16 +26,23 @@ export interface LicitacionParaMatchingPendiente {
   id: string;
   codigoExterno: string;
   nombre: string;
+  descripcion: string | null;
   nombreOrganismo: string | null;
   montoEstimado: number | null;
   moneda: string | null;
   regionUnidad: string | null;
   tipo: string | null;
   fechaCierre: Date | null;
-  analisis: LicitacionAnalisisParaMatching;
+  items: Array<{
+    nombreProducto: string;
+    categoriaUnspsc: string | null;
+    cantidad: number | null;
+    unidadMedida: string | null;
+  }>;
+  analisis: LicitacionAnalisisParaMatching | null;
 }
 
-/** Una licitación que se pidió matchear pero todavía no tiene análisis del cual partir. */
+/** Descriptor conservado para compatibilidad de tipos si se reportan ítems omitidos. */
 export interface DescriptorSinAnalisis {
   id: string;
   codigoExterno: string;
@@ -43,25 +50,32 @@ export interface DescriptorSinAnalisis {
   nombreOrganismo: string | null;
 }
 
-/** Lo que el prompt de matching necesita de una licitación: sus datos y su análisis ya hecho. */
+/** Lo que el prompt o servicio de matching necesita de una licitación: datos base, items y análisis opcional. */
 const SELECT_PARA_MATCHING = {
   id: true,
   codigoExterno: true,
   nombre: true,
+  descripcion: true,
   nombreOrganismo: true,
   montoEstimado: true,
   moneda: true,
   regionUnidad: true,
   tipo: true,
   fechaCierre: true,
+  items: {
+    select: {
+      nombreProducto: true,
+      categoriaUnspsc: true,
+      cantidad: true,
+      unidadMedida: true,
+    },
+  },
   analisis: {
     select: {
       resumenEjecutivo: true,
       puntosClave: true,
       palabrasClave: true,
       nivelComplejidad: true,
-      // listarPendientesActivas ya filtra por COMPLETADO en el where, pero listarPorIds no puede:
-      // necesita distinguir las que no lo tienen para reportarlas como omitidas.
       estado: true,
     },
   },
@@ -71,19 +85,30 @@ type FilaMatching = {
   id: string;
   codigoExterno: string;
   nombre: string;
+  descripcion: string | null;
   nombreOrganismo: string | null;
   montoEstimado: unknown;
   moneda: string | null;
   regionUnidad: string | null;
   tipo: string | null;
   fechaCierre: Date | null;
+  items: Array<{
+    nombreProducto: string;
+    categoriaUnspsc: string | null;
+    cantidad: unknown;
+    unidadMedida: string | null;
+  }>;
   analisis: (LicitacionAnalisisParaMatching & { estado: string }) | null;
 };
 
 const aLicitacionParaMatching = (l: FilaMatching): LicitacionParaMatchingPendiente => ({
   ...l,
   montoEstimado: l.montoEstimado ? Number(l.montoEstimado) : null,
-  analisis: l.analisis as LicitacionAnalisisParaMatching,
+  items: l.items.map((it) => ({
+    ...it,
+    cantidad: it.cantidad !== null && it.cantidad !== undefined ? Number(it.cantidad) : null,
+  })),
+  analisis: l.analisis ? (l.analisis as LicitacionAnalisisParaMatching) : null,
 });
 
 export const matchingLicitacionRepository = {
@@ -106,8 +131,9 @@ export const matchingLicitacionRepository = {
   },
 
   /**
-   * Licitaciones activas ("Publicada") con análisis completado, sin matching vigente para el perfil
-   * actual (sin fila, fila FALLIDA, o calculada contra una versión anterior del perfil).
+   * Licitaciones activas ("Publicada") sin matching vigente para el perfil actual (sin fila,
+   * fila FALLIDA, o calculada contra una versión anterior del perfil).
+   * Ya no exige análisis previo: evalúa directamente las licitaciones activas.
    *
    * @param segmentosUnspsc Si viene con valores, solo devuelve licitaciones con al menos un ítem de
    * esos segmentos. Vacío o sin definir procesa todas (comportamiento de siempre).
@@ -119,7 +145,6 @@ export const matchingLicitacionRepository = {
     const licitaciones = await prisma.licitacion.findMany({
       where: {
         estado: { equals: "Publicada", mode: "insensitive" },
-        analisis: { estado: "COMPLETADO" },
         OR: [
           { matching: null },
           { matching: { estado: "FALLIDO" } },
@@ -137,12 +162,9 @@ export const matchingLicitacionRepository = {
   },
 
   /**
-   * Licitaciones puntuales por id. Sin prefiltro UNSPSC y sin el predicado de "pendiente" — las
-   * eligió el usuario (ver el comentario de analisisLicitacionRepository.listarPorIds).
-   *
-   * Sí exige análisis completado, porque eso no es una preferencia sino la dependencia dura del
-   * matching: sin análisis no hay con qué matchear. Las que no lo tengan salen por `sinAnalisis`
-   * para que el llamador las reporte como omitidas en vez de hacerlas desaparecer.
+   * Licitaciones puntuales por id. Sin prefiltro UNSPSC y sin el predicado de "pendiente".
+   * Como la calificación evalúa directamente los datos oficiales de ChileCompra, todas las
+   * licitaciones encontradas se incluyen en `listas` para ser procesadas.
    */
   async listarPorIds(
     ids: string[]
@@ -153,22 +175,9 @@ export const matchingLicitacionRepository = {
       orderBy: { fechaCierre: "asc" },
     });
 
-    const listas: LicitacionParaMatchingPendiente[] = [];
-    const sinAnalisis: DescriptorSinAnalisis[] = [];
-
-    for (const l of licitaciones) {
-      if (l.analisis?.estado === "COMPLETADO") {
-        listas.push(aLicitacionParaMatching(l));
-      } else {
-        sinAnalisis.push({
-          id: l.id,
-          codigoExterno: l.codigoExterno,
-          nombre: l.nombre,
-          nombreOrganismo: l.nombreOrganismo,
-        });
-      }
-    }
-
-    return { listas, sinAnalisis };
+    return {
+      listas: licitaciones.map(aLicitacionParaMatching),
+      sinAnalisis: [],
+    };
   },
 };

@@ -25,6 +25,8 @@ const licitacionConAnalisisCompletado = {
   id: "lic-1",
   codigoExterno: "123-45-LE24",
   nombre: "Mantención de climatización",
+  descripcion: "Mantención de equipos de climatización.",
+  items: [],
   nombreOrganismo: "Organismo X",
   montoEstimado: 15000000,
   moneda: "CLP",
@@ -53,8 +55,8 @@ const ctxBase: ContextoMatching = {
 
 const opcionesItem = () => ({ signal: new AbortController().signal, onToken: vi.fn(), onReintento: vi.fn() });
 
-function buildService() {
-  const ollamaClient = { generarMatching: vi.fn() };
+function buildService(modelo: string = "qwen3:8b") {
+  const matchingClient = { modelo, generarMatching: vi.fn() };
   const perfilEmpresaRepo = { obtener: vi.fn() };
   const matchingRepo = {
     guardarCompletado: vi.fn().mockResolvedValue({ id: "match-1", duracionMs: 10 }),
@@ -64,12 +66,12 @@ function buildService() {
   };
 
   const service = new MatchingLicitacionesService(
-    ollamaClient as never,
+    matchingClient as never,
     perfilEmpresaRepo as never,
     matchingRepo as never
   );
 
-  return { service, ollamaClient, perfilEmpresaRepo, matchingRepo };
+  return { service, matchingClient, ollamaClient: matchingClient, perfilEmpresaRepo, matchingRepo };
 }
 
 describe("MatchingLicitacionesService.procesar", () => {

@@ -45,15 +45,24 @@ export interface LicitacionAnalisisParaMatching {
   nivelComplejidad: "BAJA" | "MEDIA" | "ALTA" | null;
 }
 
+export interface LicitacionItemParaMatching {
+  nombreProducto: string;
+  categoriaUnspsc?: string | null;
+  cantidad?: number | null;
+  unidadMedida?: string | null;
+}
+
 export interface LicitacionParaMatching {
   nombre: string;
+  descripcion?: string | null;
   nombreOrganismo: string | null;
   montoEstimado: number | null;
   moneda: string | null;
   regionUnidad: string | null;
   tipo: string | null;
   fechaCierre: Date | null;
-  analisis: LicitacionAnalisisParaMatching;
+  items?: LicitacionItemParaMatching[];
+  analisis?: LicitacionAnalisisParaMatching | null;
 }
 
 export type RecomendacionMatchingLlm = "si" | "no" | "tal_vez";

@@ -1,30 +1,63 @@
+import { CheckCircle2, HelpCircle, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { MatchingResumen } from "@/types/api";
 
-const ESTILOS: Record<"SI" | "NO" | "TAL_VEZ", string> = {
-  SI: "border-transparent bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-400",
-  TAL_VEZ: "border-transparent bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-400",
-  NO: "border-transparent bg-rose-100 text-rose-800 dark:bg-rose-500/15 dark:text-rose-400",
-};
-
-const ETIQUETAS: Record<"SI" | "NO" | "TAL_VEZ", string> = {
-  SI: "Sí",
-  TAL_VEZ: "Tal vez",
-  NO: "No",
+const CONFIG: Record<
+  "SI" | "NO" | "TAL_VEZ",
+  {
+    badgeClass: string;
+    pillClass: string;
+    label: string;
+    Icon: React.ComponentType<{ className?: string }>;
+  }
+> = {
+  SI: {
+    badgeClass: "border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 font-semibold gap-1",
+    pillClass: "bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 font-bold",
+    label: "Sí",
+    Icon: CheckCircle2,
+  },
+  TAL_VEZ: {
+    badgeClass: "border-amber-500/30 bg-amber-500/15 text-amber-700 dark:text-amber-400 font-semibold gap-1",
+    pillClass: "bg-amber-500/15 text-amber-800 dark:text-amber-300 font-medium",
+    label: "Tal vez",
+    Icon: HelpCircle,
+  },
+  NO: {
+    badgeClass: "border-transparent bg-rose-500/10 text-rose-700 dark:text-rose-400 gap-1",
+    pillClass: "text-muted-foreground",
+    label: "No",
+    Icon: XCircle,
+  },
 };
 
 export function RecomendacionBadge({ matching }: { matching: MatchingResumen | null }) {
   if (!matching || matching.estado === "FALLIDO") {
-    return <Badge variant="outline">{matching?.estado === "FALLIDO" ? "Matching falló" : "Sin match"}</Badge>;
+    return (
+      <Badge variant="outline" className="text-muted-foreground font-normal text-xs">
+        {matching?.estado === "FALLIDO" ? "Falló" : "Sin match"}
+      </Badge>
+    );
   }
 
-  if (!matching.recomendacion) return <Badge variant="outline">Sin match</Badge>;
+  if (!matching.recomendacion) {
+    return <Badge variant="outline" className="text-muted-foreground font-normal text-xs">Sin match</Badge>;
+  }
+
+  const { badgeClass, pillClass, label, Icon } = CONFIG[matching.recomendacion];
 
   return (
-    <span className="inline-flex items-center gap-1.5">
-      <Badge className={cn(ESTILOS[matching.recomendacion])}>{ETIQUETAS[matching.recomendacion]}</Badge>
-      {matching.puntaje !== null && <span className="text-xs text-muted-foreground">{matching.puntaje}/100</span>}
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+      <Badge className={cn("px-2 py-0.5 text-xs inline-flex items-center", badgeClass)}>
+        <Icon className="size-3 shrink-0" />
+        <span>{label}</span>
+      </Badge>
+      {matching.puntaje !== null && (
+        <span className={cn("rounded px-1.5 py-0.5 text-xs tabular-nums", pillClass)}>
+          {matching.puntaje}/100
+        </span>
+      )}
     </span>
   );
 }
